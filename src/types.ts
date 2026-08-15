@@ -110,4 +110,5 @@ export interface PreprocessSettings {
   gridLeft: number;
   gridWidth: number;
   gridHeight: number;
+  useHybridMode: boolean;
 }
