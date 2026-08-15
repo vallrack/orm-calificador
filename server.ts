@@ -242,9 +242,28 @@ You must return ONLY a valid JSON object strictly following this structure:
 
     console.log(`[AI Army] Dispatching ${promises.length} concurrent requests...`);
     
-    // Wait for all models to process
-    const resultsRaw = await Promise.all(promises);
-    const validResults = resultsRaw.filter(r => r && Array.isArray(r.answers));
+    // We maintain a shared array of successful results to capture them even if we timeout
+    const sharedResults: any[] = [];
+    const trackedPromises = promises.map(p => p.then(res => {
+      if (res && Array.isArray(res.answers)) {
+        sharedResults.push(res);
+      }
+      return res;
+    }));
+
+    // Vercel Hobby limits execution to 10s (or 60s if maxDuration works, but often it cuts at 10s).
+    // We set a hard 8.5 second timeout so we don't crash Vercel. We process whatever answered in time.
+    const timeoutPromise = new Promise<void>((resolve) => {
+      setTimeout(() => {
+        console.log("[AI Army] 8.5s timeout reached! Using collected answers.");
+        resolve();
+      }, 8500);
+    });
+
+    // Wait for all to finish OR timeout
+    await Promise.race([Promise.all(trackedPromises), timeoutPromise]);
+
+    const validResults = sharedResults;
 
     if (validResults.length === 0) {
       throw new Error("All AI models failed to process the image.");
