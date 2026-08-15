@@ -53,7 +53,10 @@ async function callOpenAICompatible(
       }
     ]
   });
-  const content = response.choices[0].message.content || "{}";
+  let content = response.choices[0].message.content || "{}";
+  if (content.startsWith("```")) {
+    content = content.replace(/^```(json)?\n/, "").replace(/\n```$/, "");
+  }
   return JSON.parse(content);
 }
 
@@ -232,7 +235,7 @@ You must return ONLY a valid JSON object strictly following this structure:
 
     // 5. Qwen (DashScope)
     if (qwenClient) {
-      promises.push(callOpenAICompatible(qwenClient, "qwen-vl-max", cleanBase64, mimeType, systemPrompt, questionCount, optionsLetters)
+      promises.push(callOpenAICompatible(qwenClient, "qwen-vl-plus", cleanBase64, mimeType, systemPrompt, questionCount, optionsLetters)
         .then(res => { console.log("[Qwen] Responded."); return res; })
         .catch(e => { console.error("[Qwen] Error:", e.message); return null; }));
     }
