@@ -265,10 +265,22 @@ export function scanBubblesLocally(
   const ctx = canvas.getContext('2d');
   if (!ctx) return {};
 
-  const gridTop = settings?.gridTop ?? 22;
-  const gridLeft = settings?.gridLeft ?? 6;
-  const gridWidth = settings?.gridWidth ?? 88;
-  const gridHeight = settings?.gridHeight ?? 72;
+  let gridTop = settings?.gridTop ?? 22;
+  let gridLeft = settings?.gridLeft ?? 6;
+  let gridWidth = settings?.gridWidth ?? 88;
+  let gridHeight = settings?.gridHeight ?? 72;
+
+  const width = canvas.width;
+  const height = canvas.height;
+
+  // Auto-detect if image is a cropped grid (aspect ratio > 0.8) instead of a full tall A4 page (aspect ratio ~0.7)
+  // If it's cropped, the default A4 margins (gridTop: 22) are wrong. We auto-adjust to full width/height.
+  if (width > height * 0.8) {
+    if (gridTop === 22) gridTop = 2;     // Move to top
+    if (gridHeight === 72) gridHeight = 96; // Use full height
+    if (gridLeft === 6) gridLeft = 2;    // Move to left
+    if (gridWidth === 88) gridWidth = 96;   // Use full width
+  }
 
   const overlayCoords = computeSheetOverlayCoordinates(
     totalQuestions, optionsPerQuestion, gridTop, gridHeight, gridLeft, gridWidth
