@@ -231,7 +231,8 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
     // If Hybrid Mode is enabled, skip the AI entirely and only use the local scanner
     if (!item.settings.useHybridMode) {
       try {
-        // 2. AI Vision Cascade: Gemini → Qwen → Groq → OpenAI (all direct from browser)
+        // 1. AI Vision Cascade: Gemini → Qwen → Groq → OpenAI (direct from browser)
+        // We always run AI to get the Name and Grade
         const base64 = processed.croppedOriginalUrl.includes(',')
           ? processed.croppedOriginalUrl.split(',')[1]
           : processed.croppedOriginalUrl;
@@ -239,30 +240,48 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
 
         const aiResult = await analyzeExamWithAI(base64, mimeType, template.totalQuestions, template.optionsPerQuestion, template.keys);
 
-        if (aiResult && aiResult.answers.length > 0) {
+        // 2. ALWAYS run Local Scanner for bubbles (deterministic, mathematical precision)
+        let localAnswers = scanBubblesLocally(
+          processed.canvas,
+          template.totalQuestions,
+          template.optionsPerQuestion,
+          item.settings
+        );
+        
+        // Count how many bubbles the local scanner actually found
+        const localDetectedCount = Object.values(localAnswers).filter(v => v !== 'BLANK').length;
+
+        if (aiResult) {
           studentName = aiResult.studentName || '';
           grade = aiResult.grade || '';
           analyzedWithAI = true;
           serverAnomalies = [...(aiResult.anomalies || []), `Modelo IA: ${aiResult.modelUsed || 'Desconocido'}`];
-          aiResult.answers.forEach((ans) => {
-            if (ans.questionNumber) {
-              detectedAnswers[ans.questionNumber] = ans.selectedOption;
-            }
-          });
+
+          // 3. SMART DECISION: Use local scanner unless it completely failed (e.g. misaligned grid)
+          // If local scanner found less than 20% of expected marks, we assume it's misaligned and fall back to AI
+          if (localDetectedCount < template.totalQuestions * 0.2 && aiResult.answers.length > 0) {
+            serverAnomalies.push("Aviso: Burbujas leídas con IA (el escáner local detectó muy poco, posible desalineación). Revise con cuidado.");
+            aiResult.answers.forEach((ans) => {
+              if (ans.questionNumber) {
+                detectedAnswers[ans.questionNumber] = ans.selectedOption;
+              }
+            });
+          } else {
+            // Local scanner worked! Use its answers.
+            serverAnomalies.push("Burbujas leídas con Escáner Local (Precisión Óptima).");
+            detectedAnswers = localAnswers;
+          }
+        } else {
+          // AI failed entirely, just use local scanner
+          detectedAnswers = localAnswers;
         }
       } catch (apiErr) {
         console.warn('[AI Cascade] All models failed, using local scanner:', apiErr);
+        detectedAnswers = scanBubblesLocally(processed.canvas, template.totalQuestions, template.optionsPerQuestion, item.settings);
       }
-    }
-
-    // 3. Fallback to client-side heuristic density scanner if needed
-    if (Object.keys(detectedAnswers).length === 0) {
-      detectedAnswers = scanBubblesLocally(
-        processed.canvas,
-        template.totalQuestions,
-        template.optionsPerQuestion,
-        item.settings
-      );
+    } else {
+      // Legacy Hybrid Mode (No AI at all)
+      detectedAnswers = scanBubblesLocally(processed.canvas, template.totalQuestions, template.optionsPerQuestion, item.settings);
     }
 
     // Default student name if unreadable
