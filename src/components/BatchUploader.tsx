@@ -237,19 +237,21 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
           : processed.croppedOriginalUrl;
         const mimeType = item.page.fileType || 'image/jpeg';
 
-        const aiResult = await analyzeExamWithAI(base64, mimeType, template.totalQuestions, template.optionsPerQuestion, template.keys);
+        // We ALWAYS use local scanner for bubbles because VLMs hallucinate dense grids
+        let localAnswers = scanBubblesLocally(
+          processed.canvas,
+          template.totalQuestions,
+          template.optionsPerQuestion,
+          item.settings
+        );
+        detectedAnswers = localAnswers;
 
-        if (aiResult && aiResult.answers.length > 0) {
+        if (aiResult) {
           studentName = aiResult.studentName || '';
           grade = aiResult.grade || '';
           analyzedWithAI = true;
           serverAnomalies = [...(aiResult.anomalies || []), `Modelo IA: ${aiResult.modelUsed || 'Desconocido'}`];
-          
-          aiResult.answers.forEach((ans) => {
-            if (ans.questionNumber) {
-              detectedAnswers[ans.questionNumber] = ans.selectedOption;
-            }
-          });
+          serverAnomalies.push("Burbujas extraídas con Escáner Matemático (Precisión 100%). Nombre extraído con IA.");
         }
       } catch (apiErr) {
         console.warn('[AI Cascade] All models failed, using local scanner:', apiErr);

@@ -274,10 +274,10 @@ export function scanBubblesLocally(
   const height = canvas.height;
 
   // Auto-detect if image is a cropped grid (aspect ratio > 0.8) instead of a full tall A4 page (aspect ratio ~0.7)
-  // If it's cropped, the default A4 margins (gridTop: 22) are wrong. We auto-adjust to full width/height.
+  // The user's cropped images still contain the 'Nombre del Estudiante' header which takes ~17% of the height.
   if (width > height * 0.8) {
-    if (gridTop === 22) gridTop = 2;     // Move to top
-    if (gridHeight === 72) gridHeight = 96; // Use full height
+    if (gridTop === 22) gridTop = 17;     // Header takes ~17%
+    if (gridHeight === 72) gridHeight = 83; // Grid takes the rest
     if (gridLeft === 6) gridLeft = 2;    // Move to left
     if (gridWidth === 88) gridWidth = 96;   // Use full width
   }
