@@ -822,7 +822,7 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
                     className="block max-w-full h-auto rounded shadow-lg select-none"
                   />
                   {/* Grid Overlay - Siempre visible para alinear perfectamente */}
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <div className="absolute inset-0 pointer-events-none">
                     {computeSheetOverlayCoordinates(
                       template.totalQuestions,
                       template.optionsPerQuestion,
@@ -830,19 +830,24 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
                       selectedItem.settings.gridHeight,
                       selectedItem.settings.gridLeft,
                       selectedItem.settings.gridWidth
-                    ).map((coord, idx) => (
-                      <circle
-                        key={idx}
-                        cx={`${coord.x}%`}
-                        cy={`${coord.y}%`}
-                        r="1.2"
-                        fill="none"
-                        stroke="#10b981"
-                        strokeWidth="0.4"
-                        className="opacity-80"
-                      />
+                    ).map((item) => (
+                      <div key={item.questionNumber}>
+                        {item.options.map((opt) => (
+                          <div
+                            key={opt.letter}
+                            className="absolute rounded-full border border-emerald-400 bg-emerald-400/20 shadow-xs"
+                            style={{
+                              left: `${opt.x}%`,
+                              top: `${opt.y}%`,
+                              width: `${opt.radius * 2.2}%`,
+                              height: `${opt.radius * 2.2}%`,
+                              transform: 'translate(-50%, -50%)',
+                            }}
+                          />
+                        ))}
+                      </div>
                     ))}
-                  </svg>
+                  </div>
                 </div>
               </div>
 
