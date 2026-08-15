@@ -64,8 +64,8 @@ The answers array MUST have exactly ${totalQuestions} entries.`;
 function parseAIResponse(raw: string): AIVisionResult | null {
   try {
     let text = raw.trim();
-    if (text.startsWith('` + '`' + '`' + `')) {
-      text = text.replace(/^` + '`' + '`' + `(json)?\n?/, '').replace(/\n?` + '`' + '`' + `$/, '');
+    if (text.startsWith('```')) {
+      text = text.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
     }
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) text = jsonMatch[0];

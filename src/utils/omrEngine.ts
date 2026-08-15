@@ -287,9 +287,6 @@ export function scanBubblesLocally(
   );
   const results: Record<number, OptionLetter | 'MULTIPLE' | 'BLANK'> = {};
 
-  const width = canvas.width;
-  const height = canvas.height;
-
   for (const item of overlayCoords) {
     const densities: { letter: OptionLetter; darkness: number }[] = [];
 

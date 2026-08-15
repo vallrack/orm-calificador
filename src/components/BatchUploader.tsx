@@ -740,9 +740,8 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
                 </label>
               </div>
 
-              {/* Grid Alignment Sliders (Hybrid Mode) */}
-              {selectedItem.settings.useHybridMode && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+              {/* Grid Alignment Sliders (Siempre visibles porque el escáner local es primario) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mt-4">
                   <div className="col-span-2 sm:col-span-4 text-xs font-bold text-indigo-800 flex items-center justify-between">
                     <span>Alineación Manual de Grilla (Modo Híbrido)</span>
                     <span className="font-normal text-[10px] text-indigo-600">Para calificación local 100% precisa</span>
@@ -780,10 +779,9 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
                     <input type="range" min="30" max="100" step="0.5" value={selectedItem.settings.gridWidth} onChange={(e) => handleSettingChange('gridWidth', parseFloat(e.target.value))} className="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
                   </div>
                 </div>
-              )}
 
               {/* View Toggle: Processed Photo vs Binarized Black & White */}
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center justify-between text-xs mt-6">
                 <span className="font-semibold text-slate-600">Vista previa en tiempo real:</span>
                 <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
                   <button
@@ -812,7 +810,7 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
               </div>
 
               {/* Preview Display Window */}
-              <div className="relative w-full h-[500px] bg-slate-900 rounded-xl overflow-y-auto overflow-x-hidden border border-slate-800 flex items-start justify-center p-4 shadow-inner">
+              <div className="relative w-full h-[500px] bg-slate-900 rounded-xl overflow-y-auto overflow-x-hidden border border-slate-800 flex items-start justify-center p-4 shadow-inner mt-2">
                 <div className="relative inline-block max-w-full">
                   <img
                     src={
@@ -823,42 +821,35 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
                     alt="Previsualización OMR"
                     className="block max-w-full h-auto rounded shadow-lg select-none"
                   />
-                  {/* Grid Overlay */}
-                  {selectedItem.settings.useHybridMode && (
-                    <div className="absolute inset-0 pointer-events-none">
-                      {computeSheetOverlayCoordinates(
-                        template.totalQuestions,
-                        template.optionsPerQuestion,
-                        selectedItem.settings.gridTop,
-                        selectedItem.settings.gridHeight,
-                        selectedItem.settings.gridLeft,
-                        selectedItem.settings.gridWidth
-                      ).map((item) => (
-                        <div key={item.questionNumber}>
-                          {item.options.map((opt) => (
-                            <div
-                              key={opt.letter}
-                              className="absolute rounded-full border-2 border-indigo-500/80 bg-indigo-500/20 shadow-xs"
-                              style={{
-                                left: `${opt.x}%`,
-                                top: `${opt.y}%`,
-                                width: `${opt.radius * 2.2}%`,
-                                height: `${opt.radius * 2.2}%`,
-                                transform: 'translate(-50%, -50%)',
-                              }}
-                            />
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {/* Grid Overlay - Siempre visible para alinear perfectamente */}
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    {computeSheetOverlayCoordinates(
+                      template.totalQuestions,
+                      template.optionsPerQuestion,
+                      selectedItem.settings.gridTop,
+                      selectedItem.settings.gridHeight,
+                      selectedItem.settings.gridLeft,
+                      selectedItem.settings.gridWidth
+                    ).map((coord, idx) => (
+                      <circle
+                        key={idx}
+                        cx={`${coord.x}%`}
+                        cy={`${coord.y}%`}
+                        r="1.2"
+                        fill="none"
+                        stroke="#10b981"
+                        strokeWidth="0.4"
+                        className="opacity-80"
+                      />
+                    ))}
+                  </svg>
                 </div>
+              </div>
 
                 <div className="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-white text-xs flex items-center space-x-2 border border-slate-700">
                   <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                   <span>{selectedItem.page.fileName} (Rotación: {selectedItem.rotation}°)</span>
                 </div>
-              </div>
             </div>
           ) : (
             <div className="h-64 flex flex-col items-center justify-center text-slate-400 text-xs space-y-2">
