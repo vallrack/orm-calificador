@@ -237,7 +237,7 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
           : processed.croppedOriginalUrl;
         const mimeType = item.page.fileType || 'image/jpeg';
 
-        const aiResult = await analyzeExamWithAI(base64, mimeType, template.totalQuestions, template.optionsPerQuestion);
+        const aiResult = await analyzeExamWithAI(base64, mimeType, template.totalQuestions, template.optionsPerQuestion, template.keys);
 
         if (aiResult && aiResult.answers.length > 0) {
           studentName = aiResult.studentName || '';

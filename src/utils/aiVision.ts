@@ -1,4 +1,4 @@
-﻿/**
+/**
  * aiVision.ts - Client-side AI Vision cascade with majority vote for consistency.
  * Fallback: Gemini(x3 vote) -> Qwen -> Groq -> OpenAI -> null
  */
@@ -17,10 +17,22 @@ export interface AIVisionResult {
   modelUsed: string;
 }
 
-function buildOMRPrompt(totalQuestions: number, optionsPerQuestion: number): string {
+function buildOMRPrompt(totalQuestions: number, optionsPerQuestion: number, expectedKeys?: Record<number, string>): string {
   const letters = optionsPerQuestion === 5 ? 'a, b, c, d, e'
     : optionsPerQuestion === 3 ? 'a, b, c' : 'a, b, c, d';
   const count = optionsPerQuestion;
+  
+  let expectedKeysSection = '';
+  if (expectedKeys && Object.keys(expectedKeys).length > 0) {
+    expectedKeysSection = `
+== EXPECTED ANSWERS (CONTEXT FOR VERIFICATION) ==
+The following are the expected correct answers for this exam.
+Use these ONLY as a strong hint when a mark is ambiguous or faint. 
+If the student clearly marked a DIFFERENT bubble, you MUST output what the student marked, NOT the expected answer.
+Expected keys: ${JSON.stringify(expectedKeys)}
+`;
+  }
+
   return `You are a precise OMR (Optical Mark Recognition) scanner analyzing a Colombian school multiple-choice answer sheet.
 
 == SHEET STRUCTURE ==
@@ -28,7 +40,7 @@ function buildOMRPrompt(totalQuestions: number, optionsPerQuestion: number): str
 - Body: rows numbered 1 to ${totalQuestions}
 - Each row has exactly ${count} answer bubbles arranged LEFT-TO-RIGHT labeled: ${letters}
   (leftmost bubble = a, next = b, next = c${count >= 4 ? ', rightmost = d' : ''}${count === 5 ? ', last = e' : ''})
-
+${expectedKeysSection}
 == HOW TO READ EACH ROW ==
 For question row N:
   - Scan all ${count} bubbles from left to right
@@ -179,9 +191,9 @@ async function callOpenAI(base64: string, mimeType: string, prompt: string, tota
 }
 
 export async function analyzeExamWithAI(
-  base64: string, mimeType: string, totalQuestions: number, optionsPerQuestion: number
+  base64: string, mimeType: string, totalQuestions: number, optionsPerQuestion: number, expectedKeys?: Record<number, string>
 ): Promise<AIVisionResult | null> {
-  const prompt = buildOMRPrompt(totalQuestions, optionsPerQuestion);
+  const prompt = buildOMRPrompt(totalQuestions, optionsPerQuestion, expectedKeys);
   console.log('[AI Cascade] Starting... Gemini(x3 vote) -> Qwen -> Groq -> OpenAI');
   const g = await callGeminiWithConsensus(base64, mimeType, prompt, totalQuestions, optionsPerQuestion);
   if (g) return g;
