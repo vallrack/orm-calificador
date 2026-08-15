@@ -93,10 +93,15 @@ function majorityVote(results: AIVisionResult[], totalQuestions: number): AIVisi
   return { ...base, answers: merged, modelUsed: base.modelUsed + ' (mayoria 3 lecturas)' };
 }
 
-async function callGeminiOnce(base64: string, mimeType: string, prompt: string, totalQuestions: number, optionsPerQuestion: number): Promise<AIVisionResult | null> {
+async function callGemini(
+  base64: string, mimeType: string, prompt: string, totalQuestions: number, optionsPerQuestion: number
+): Promise<AIVisionResult | null> {
   const key = import.meta.env.VITE_GEMINI_API_KEY;
   if (!key) return null;
   const letters = optionsPerQuestion === 5 ? 'a,b,c,d,e' : optionsPerQuestion === 3 ? 'a,b,c' : 'a,b,c,d';
+  
+  console.log('[Gemini] Making 1 API call (Majority vote removed to avoid 429 limit)...');
+  
   try {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
@@ -108,24 +113,14 @@ async function callGeminiOnce(base64: string, mimeType: string, prompt: string, 
     );
     const json = await res.json();
     if (json.error) { console.warn('[Gemini] error:', json.error.message); return null; }
-    return parseAIResponse(json?.candidates?.[0]?.content?.parts?.[0]?.text || '');
+    
+    const result = parseAIResponse(json?.candidates?.[0]?.content?.parts?.[0]?.text || '');
+    if (result) {
+      result.modelUsed = 'Gemini 2.0 Flash';
+      return result;
+    }
+    return null;
   } catch (e: any) { console.warn('[Gemini] failed:', e.message); return null; }
-}
-
-async function callGeminiWithConsensus(base64: string, mimeType: string, prompt: string, totalQuestions: number, optionsPerQuestion: number): Promise<AIVisionResult | null> {
-  if (!import.meta.env.VITE_GEMINI_API_KEY) return null;
-  console.log('[Gemini] 3 parallel reads for majority vote...');
-  const attempts = await Promise.all([
-    callGeminiOnce(base64, mimeType, prompt, totalQuestions, optionsPerQuestion),
-    callGeminiOnce(base64, mimeType, prompt, totalQuestions, optionsPerQuestion),
-    callGeminiOnce(base64, mimeType, prompt, totalQuestions, optionsPerQuestion),
-  ]);
-  const valid = attempts.filter(r => r !== null) as AIVisionResult[];
-  if (valid.length === 0) { console.warn('[Gemini] All 3 reads failed'); return null; }
-  valid.forEach(r => { r.modelUsed = 'Gemini 2.0 Flash'; });
-  if (valid.length === 1) return valid[0];
-  console.log(`[Gemini] ${valid.length}/3 reads OK, applying majority vote`);
-  return majorityVote(valid, totalQuestions);
 }
 
 async function callQwen(base64: string, mimeType: string, prompt: string, totalQuestions: number, optionsPerQuestion: number): Promise<AIVisionResult | null> {
@@ -194,8 +189,8 @@ export async function analyzeExamWithAI(
   base64: string, mimeType: string, totalQuestions: number, optionsPerQuestion: number, expectedKeys?: Record<number, string>
 ): Promise<AIVisionResult | null> {
   const prompt = buildOMRPrompt(totalQuestions, optionsPerQuestion, expectedKeys);
-  console.log('[AI Cascade] Starting... Gemini(x3 vote) -> Qwen -> Groq -> OpenAI');
-  const g = await callGeminiWithConsensus(base64, mimeType, prompt, totalQuestions, optionsPerQuestion);
+  console.log('[AI Cascade] Starting... Gemini -> Qwen -> Groq -> OpenAI');
+  const g = await callGemini(base64, mimeType, prompt, totalQuestions, optionsPerQuestion);
   if (g) return g;
   console.log('[AI Cascade] Gemini failed, trying Qwen...');
   const q = await callQwen(base64, mimeType, prompt, totalQuestions, optionsPerQuestion);
