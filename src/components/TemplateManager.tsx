@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { MasterTemplate, OptionLetter } from '../types';
 import { parseUploadedFile } from '../utils/fileParser';
+import { analyzeExamWithAI } from '../utils/aiVision';
 
 interface TemplateManagerProps {
   template: MasterTemplate;
@@ -84,31 +85,27 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
 
     try {
       setIsAnalyzingMaster(true);
-      setMasterUploadFeedback('Analizando hoja patrón con IA Gemini / OMR...');
+      setMasterUploadFeedback('Analizando hoja patrón con IA (Gemini → Qwen → Groq → OpenAI)...');
 
       const pages = await parseUploadedFile(file);
       if (pages.length === 0) throw new Error('No se pudo leer el archivo de la plantilla.');
 
       const firstPage = pages[0];
 
-      // Call API
-      const res = await fetch('/api/analyze-sheet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageBase64: firstPage.dataUrl,
-          mimeType: 'image/jpeg',
-          questionCount: template.totalQuestions,
-          optionsPerQuestion: template.optionsPerQuestion,
-        }),
-      });
+      // Strip data URL prefix to get raw base64
+      const base64 = firstPage.dataUrl.includes(',')
+        ? firstPage.dataUrl.split(',')[1]
+        : firstPage.dataUrl;
+      const mimeType = file.type || 'image/jpeg';
 
-      const json = await res.json();
-      if (json.success && json.data && json.data.answers) {
+      // Use direct client-side AI cascade (bypasses Vercel timeouts)
+      const aiResult = await analyzeExamWithAI(base64, mimeType, template.totalQuestions, template.optionsPerQuestion);
+
+      if (aiResult && aiResult.answers && aiResult.answers.length > 0) {
         const extractedKeys: Record<number, OptionLetter> = { ...template.keys };
         let detectedCount = 0;
 
-        json.data.answers.forEach((ans: any) => {
+        aiResult.answers.forEach((ans) => {
           if (ans.selectedOption && ans.selectedOption !== 'BLANK' && ans.selectedOption !== 'MULTIPLE') {
             const letter = ans.selectedOption.toLowerCase() as OptionLetter;
             if (['a', 'b', 'c', 'd', 'e'].includes(letter)) {
@@ -123,7 +120,7 @@ export const TemplateManager: React.FC<TemplateManagerProps> = ({
           keys: extractedKeys,
         }));
 
-        setMasterUploadFeedback(`¡Éxito! Se detectaron automáticamente ${detectedCount} respuestas para la Plantilla Maestro.`);
+        setMasterUploadFeedback(`¡Éxito! Se detectaron ${detectedCount} respuestas válidas con ${aiResult.modelUsed || 'IA'}. Revise la cuadrícula y guarde la plantilla.`);
       } else {
         setMasterUploadFeedback('No se pudieron detectar todas las marcas automáticamente. Revise manualmente la cuadrícula.');
       }
