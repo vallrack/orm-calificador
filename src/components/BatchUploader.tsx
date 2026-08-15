@@ -231,16 +231,21 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
     if (!item.settings.useHybridMode) {
       try {
         // 2. Call server-side Gemini Vision OCR / HTR Endpoint
-      const res = await fetch('/api/analyze-sheet', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageBase64: processed.croppedOriginalUrl,
-          mimeType: item.page.fileType || 'image/jpeg',
-          questionCount: template.totalQuestions,
-          optionsPerQuestion: template.optionsPerQuestion,
-        }),
-      });
+        // Add 9s timeout so Vercel doesn't hang the browser if the function takes too long
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 9000);
+        const res = await fetch('/api/analyze-sheet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            imageBase64: processed.croppedOriginalUrl,
+            mimeType: item.page.fileType || 'image/jpeg',
+            questionCount: template.totalQuestions,
+            optionsPerQuestion: template.optionsPerQuestion,
+          }),
+        });
+        clearTimeout(timeoutId);
 
       const json = await res.json();
       if (json.success && json.data) {

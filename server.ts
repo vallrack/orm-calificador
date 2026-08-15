@@ -240,30 +240,21 @@ You must return ONLY a valid JSON object strictly following this structure:
         .catch(e => { console.error("[Qwen] Error:", e.message); return null; }));
     }
 
-    console.log(`[AI Army] Dispatching ${promises.length} concurrent requests...`);
-    
-    // We maintain a shared array of successful results to capture them even if we timeout
-    const sharedResults: any[] = [];
-    const trackedPromises = promises.map(p => p.then(res => {
-      if (res && Array.isArray(res.answers)) {
-        sharedResults.push(res);
-      }
-      return res;
-    }));
+    console.log(`[AI Army] Dispatching ${promises.length} concurrent requests (first-to-respond wins)...`);
 
-    // Vercel Hobby limits execution to 10s (or 60s if maxDuration works, but often it cuts at 10s).
-    // We set a hard 8.5 second timeout so we don't crash Vercel. We process whatever answered in time.
-    const timeoutPromise = new Promise<void>((resolve) => {
-      setTimeout(() => {
-        console.log("[AI Army] 8.5s timeout reached! Using collected answers.");
-        resolve();
-      }, 8500);
-    });
+    // Use Promise.any: returns the FIRST AI that responds successfully.
+    // This is critical for Vercel: Gemini responds in ~4s, so we don't need to wait for slow models.
+    // Filter out null results (failed AI calls) by wrapping each in a rejection if null.
+    const firstValidResult = await Promise.any(
+      promises.map(p => p.then(res => {
+        if (res && Array.isArray(res.answers) && res.answers.length > 0) {
+          return res;
+        }
+        throw new Error("Invalid or empty AI response");
+      }))
+    ).catch(() => null);
 
-    // Wait for all to finish OR timeout
-    await Promise.race([Promise.all(trackedPromises), timeoutPromise]);
-
-    const validResults = sharedResults;
+    const validResults = firstValidResult ? [firstValidResult] : [];
 
     if (validResults.length === 0) {
       throw new Error("All AI models failed to process the image.");
