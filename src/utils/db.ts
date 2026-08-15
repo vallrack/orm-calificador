@@ -71,6 +71,14 @@ export const saveResult = async (userId: string, result: StudentExamResult) => {
   }
 };
 
+export const deleteResult = async (userId: string, resultId: string) => {
+  try {
+    await deleteDoc(doc(db, "users", userId, "results", resultId));
+  } catch (error) {
+    console.error("Error deleting result from Firestore:", error);
+  }
+};
+
 export const deleteUserData = async (userId: string, results: StudentExamResult[], templates: MasterTemplate[]) => {
   try {
     const batch = writeBatch(db);

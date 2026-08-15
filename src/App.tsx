@@ -13,7 +13,7 @@ import { calculateClassStatistics } from './utils/scoring';
 import { RotateCcw, Sparkles, BookOpen, Layers, CheckCircle2 } from 'lucide-react';
 import { auth } from './firebase';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { loadUserData, saveTemplate, saveResult, deleteUserData, deleteTemplate } from './utils/db';
+import { loadUserData, saveTemplate, saveResult, deleteResult, deleteUserData, deleteTemplate } from './utils/db';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -154,6 +154,13 @@ export default function App() {
     }
   };
 
+  const handleDeleteResult = (id: string) => {
+    setResults((prev) => prev.filter((r) => r.id !== id));
+    if (user) {
+      deleteResult(user.uid, id);
+    }
+  };
+
   const handleUpdateSingleResult = (updated: StudentExamResult) => {
     setResults((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     setInspectingResult(updated);
@@ -243,6 +250,7 @@ export default function App() {
             template={template}
             onOpenVisualModal={(res) => setInspectingResult(res)}
             onNavigateToReports={() => setActiveTab('reports')}
+            onDeleteResult={handleDeleteResult}
           />
         )}
 

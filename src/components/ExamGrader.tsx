@@ -25,6 +25,7 @@ interface ExamGraderProps {
   template: MasterTemplate;
   onOpenVisualModal: (result: StudentExamResult) => void;
   onNavigateToReports: () => void;
+  onDeleteResult?: (id: string) => void;
 }
 
 export const ExamGrader: React.FC<ExamGraderProps> = ({
@@ -33,6 +34,7 @@ export const ExamGrader: React.FC<ExamGraderProps> = ({
   template,
   onOpenVisualModal,
   onNavigateToReports,
+  onDeleteResult,
 }) => {
   const [filterTab, setFilterTab] = useState<'ALL' | 'NEEDS_REVIEW' | 'PASSED' | 'FAILED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,7 +62,11 @@ export const ExamGrader: React.FC<ExamGraderProps> = ({
 
   const deleteResult = (id: string) => {
     if (confirm('¿Está seguro de eliminar esta hoja calificada?')) {
-      setResults((prev) => prev.filter((r) => r.id !== id));
+      if (onDeleteResult) {
+        onDeleteResult(id); // Deletes from Firebase + React state
+      } else {
+        setResults((prev) => prev.filter((r) => r.id !== id)); // Local-only fallback
+      }
     }
   };
 
