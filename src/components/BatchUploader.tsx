@@ -835,12 +835,12 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
                         {item.options.map((opt) => (
                           <div
                             key={opt.letter}
-                            className="absolute rounded-full border border-emerald-400 bg-emerald-400/20 shadow-xs"
+                            className="absolute rounded-full border-2 border-emerald-500 bg-emerald-400/30 shadow-xs"
                             style={{
                               left: `${opt.x}%`,
                               top: `${opt.y}%`,
-                              width: `${opt.radius * 2.2}%`,
-                              height: `${opt.radius * 2.2}%`,
+                              width: `${Math.max(2, opt.radius * 1.5)}%`,
+                              aspectRatio: '1 / 1',
                               transform: 'translate(-50%, -50%)',
                             }}
                           />
