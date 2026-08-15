@@ -20,6 +20,7 @@ import { MasterTemplate, PreprocessSettings, StudentExamResult } from '../types'
 import { parseUploadedFile, ParsedFilePage } from '../utils/fileParser';
 import { preprocessImage, scanBubblesLocally, computeSheetOverlayCoordinates } from '../utils/omrEngine';
 import { gradeStudentExam } from '../utils/scoring';
+import { analyzeExamWithAI } from '../utils/aiVision';
 
 interface BatchUploaderProps {
   template: MasterTemplate;
@@ -230,44 +231,27 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
     // If Hybrid Mode is enabled, skip the AI entirely and only use the local scanner
     if (!item.settings.useHybridMode) {
       try {
-        // 2. Call server-side Gemini Vision OCR / HTR Endpoint
-        // Add 9s timeout so Vercel doesn't hang the browser if the function takes too long
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 9000);
-        const res = await fetch('/api/analyze-sheet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-          body: JSON.stringify({
-            imageBase64: processed.croppedOriginalUrl,
-            mimeType: item.page.fileType || 'image/jpeg',
-            questionCount: template.totalQuestions,
-            optionsPerQuestion: template.optionsPerQuestion,
-          }),
-        });
-        clearTimeout(timeoutId);
+        // 2. AI Vision Cascade: Gemini → Qwen → Groq → OpenAI (all direct from browser)
+        const base64 = processed.croppedOriginalUrl.includes(',')
+          ? processed.croppedOriginalUrl.split(',')[1]
+          : processed.croppedOriginalUrl;
+        const mimeType = item.page.fileType || 'image/jpeg';
 
-      const json = await res.json();
-      if (json.success && json.data) {
-        studentName = json.data.studentName || '';
-        grade = json.data.grade || '';
-        analyzedWithAI = true;
-        serverAnomalies = json.data.anomalies || [];
+        const aiResult = await analyzeExamWithAI(base64, mimeType, template.totalQuestions, template.optionsPerQuestion);
 
-        if (Array.isArray(json.data.answers)) {
-          json.data.answers.forEach((ans: any) => {
+        if (aiResult && aiResult.answers.length > 0) {
+          studentName = aiResult.studentName || '';
+          grade = aiResult.grade || '';
+          analyzedWithAI = true;
+          serverAnomalies = [...(aiResult.anomalies || []), `Modelo IA: ${aiResult.modelUsed || 'Desconocido'}`];
+          aiResult.answers.forEach((ans) => {
             if (ans.questionNumber) {
               detectedAnswers[ans.questionNumber] = ans.selectedOption;
             }
           });
-        } else if (json.data.answers && typeof json.data.answers === 'object') {
-          Object.entries(json.data.answers).forEach(([qNum, opt]) => {
-            detectedAnswers[parseInt(qNum)] = opt;
-          });
         }
-      }
       } catch (apiErr) {
-        console.warn('API Vision OCR error, falling back to local OMR scanner:', apiErr);
+        console.warn('[AI Cascade] All models failed, using local scanner:', apiErr);
       }
     }
 
