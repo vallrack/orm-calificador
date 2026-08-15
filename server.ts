@@ -169,7 +169,7 @@ You must return ONLY a valid JSON object strictly following this structure:
     const openAIClient = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
     const groqClient = process.env.GROQ_API_KEY ? new OpenAI({ apiKey: process.env.GROQ_API_KEY, baseURL: "https://api.groq.com/openai/v1" }) : null;
     const xAIClient = process.env.XAI_API_KEY ? new OpenAI({ apiKey: process.env.XAI_API_KEY, baseURL: "https://api.x.ai/v1" }) : null;
-    const qwenClient = process.env.QWEN_API_KEY ? new OpenAI({ apiKey: process.env.QWEN_API_KEY, baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1" }) : null;
+    const qwenClient = process.env.QWEN_API_KEY ? new OpenAI({ apiKey: process.env.QWEN_API_KEY, baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1" }) : null;
 
     if (!geminiClient && !openAIClient && !groqClient && !xAIClient && !qwenClient) {
       return res.json({
