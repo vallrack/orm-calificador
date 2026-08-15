@@ -208,9 +208,10 @@ You must return ONLY a valid JSON object strictly following this structure:
 
     // 2. OpenAI GPT-4o
     if (openAIClient) {
-      promises.push(callOpenAICompatible(openAIClient, "gpt-4o", cleanBase64, mimeType, systemPrompt, questionCount, optionsLetters)
+      promises.push(callOpenAICompatible(openAIClient, "gpt-4o-mini", cleanBase64, mimeType, systemPrompt, questionCount, optionsLetters)
+        .catch(() => callOpenAICompatible(openAIClient, "gpt-4o", cleanBase64, mimeType, systemPrompt, questionCount, optionsLetters))
         .then(res => { console.log("[OpenAI] Responded."); return res; })
-        .catch(e => { console.error("[OpenAI] Error:", e); return null; }));
+        .catch(e => { console.error("[OpenAI] Error:", e.message); return null; }));
     }
 
     // 3. Groq (Llama Vision)

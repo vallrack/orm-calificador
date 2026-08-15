@@ -62,6 +62,10 @@ export interface StudentExamResult {
   contrast: number;
   brightness: number;
   threshold: number;
+  gridTop?: number;
+  gridLeft?: number;
+  gridWidth?: number;
+  gridHeight?: number;
   
   analyzedWithAI: boolean;
   timestamp: string;
@@ -102,4 +106,8 @@ export interface PreprocessSettings {
   cropBottom: number;
   cropLeft: number;
   cropRight: number;
+  gridTop: number;
+  gridLeft: number;
+  gridWidth: number;
+  gridHeight: number;
 }

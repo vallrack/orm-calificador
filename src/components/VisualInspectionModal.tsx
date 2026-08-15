@@ -37,7 +37,14 @@ export const VisualInspectionModal: React.FC<VisualInspectionModalProps> = ({
   const [selectedQuestion, setSelectedQuestion] = useState<number | null>(null);
 
   const letters: OptionLetter[] = ['a', 'b', 'c', 'd', 'e', 'f'].slice(0, template.optionsPerQuestion) as OptionLetter[];
-  const overlayCoords = computeSheetOverlayCoordinates(template.totalQuestions, template.optionsPerQuestion);
+  const overlayCoords = computeSheetOverlayCoordinates(
+    template.totalQuestions,
+    template.optionsPerQuestion,
+    currentResult.gridTop,
+    currentResult.gridHeight,
+    currentResult.gridLeft,
+    currentResult.gridWidth
+  );
 
   // When teacher clicks a bubble to correct a mark manually
   const handleBubbleClick = (questionNumber: number, optionLetter: OptionLetter) => {

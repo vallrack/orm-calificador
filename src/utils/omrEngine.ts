@@ -199,7 +199,11 @@ export interface BubbleCoordinates {
 
 export function computeSheetOverlayCoordinates(
   totalQuestions: number = 30,
-  optionsPerQuestion: number = 4
+  optionsPerQuestion: number = 4,
+  gridTop: number = 22, // % from top
+  gridHeight: number = 72, // % of total height
+  gridLeft: number = 6, // % from left
+  gridWidth: number = 88 // % width available
 ): BubbleCoordinates[] {
   const letters: OptionLetter[] = ['a', 'b', 'c', 'd', 'e', 'f'].slice(0, optionsPerQuestion) as OptionLetter[];
   
@@ -210,12 +214,6 @@ export function computeSheetOverlayCoordinates(
   const numColumns = Math.ceil(totalQuestions / questionsPerColumn);
   
   const coordinates: BubbleCoordinates[] = [];
-  
-  // Grid region in typical answer sheet (starts below header ~20% from top, ~8% margins)
-  const gridTop = 22; // % from top
-  const gridHeight = 72; // % of total height
-  const gridLeft = 6; // % from left
-  const gridWidth = 88; // % width available
   
   const colWidth = gridWidth / numColumns;
   const rowHeight = gridHeight / questionsPerColumn;
@@ -261,12 +259,20 @@ export function computeSheetOverlayCoordinates(
 export function scanBubblesLocally(
   canvas: HTMLCanvasElement,
   totalQuestions: number = 30,
-  optionsPerQuestion: number = 4
+  optionsPerQuestion: number = 4,
+  settings?: PreprocessSettings
 ): Record<number, OptionLetter | 'MULTIPLE' | 'BLANK'> {
   const ctx = canvas.getContext('2d');
   if (!ctx) return {};
 
-  const overlayCoords = computeSheetOverlayCoordinates(totalQuestions, optionsPerQuestion);
+  const gridTop = settings?.gridTop ?? 22;
+  const gridLeft = settings?.gridLeft ?? 6;
+  const gridWidth = settings?.gridWidth ?? 88;
+  const gridHeight = settings?.gridHeight ?? 72;
+
+  const overlayCoords = computeSheetOverlayCoordinates(
+    totalQuestions, optionsPerQuestion, gridTop, gridHeight, gridLeft, gridWidth
+  );
   const results: Record<number, OptionLetter | 'MULTIPLE' | 'BLANK'> = {};
 
   const width = canvas.width;

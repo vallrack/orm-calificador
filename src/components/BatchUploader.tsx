@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { MasterTemplate, PreprocessSettings, StudentExamResult } from '../types';
 import { parseUploadedFile, ParsedFilePage } from '../utils/fileParser';
-import { preprocessImage, scanBubblesLocally } from '../utils/omrEngine';
+import { preprocessImage, scanBubblesLocally, computeSheetOverlayCoordinates } from '../utils/omrEngine';
 import { gradeStudentExam } from '../utils/scoring';
 
 interface BatchUploaderProps {
@@ -62,6 +62,10 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
     cropBottom: 0,
     cropLeft: 0,
     cropRight: 0,
+    gridTop: 22,
+    gridLeft: 6,
+    gridWidth: 88,
+    gridHeight: 72,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -263,7 +267,8 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
       detectedAnswers = scanBubblesLocally(
         processed.canvas,
         template.totalQuestions,
-        template.optionsPerQuestion
+        template.optionsPerQuestion,
+        item.settings
       );
     }
 
@@ -309,6 +314,10 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
       contrast: item.settings.contrast,
       brightness: item.settings.brightness,
       threshold: item.settings.threshold,
+      gridTop: item.settings.gridTop,
+      gridLeft: item.settings.gridLeft,
+      gridWidth: item.settings.gridWidth,
+      gridHeight: item.settings.gridHeight,
       analyzedWithAI,
       timestamp: new Date().toISOString(),
     };
@@ -718,6 +727,46 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
                 </div>
               </div>
 
+              {/* Grid Alignment Sliders (Hybrid Mode) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                <div className="col-span-2 sm:col-span-4 text-xs font-bold text-indigo-800 flex items-center justify-between">
+                  <span>Alineación Manual de Grilla (Modo Híbrido)</span>
+                  <span className="font-normal text-[10px] text-indigo-600">Para calificación local 100% precisa</span>
+                </div>
+                {/* Grid Top */}
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-indigo-700 mb-1">
+                    <span>Pos. Y (Arriba)</span>
+                    <span className="font-bold">{selectedItem.settings.gridTop}%</span>
+                  </div>
+                  <input type="range" min="0" max="50" step="0.5" value={selectedItem.settings.gridTop} onChange={(e) => handleSettingChange('gridTop', parseFloat(e.target.value))} className="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+                </div>
+                {/* Grid Left */}
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-indigo-700 mb-1">
+                    <span>Pos. X (Izq)</span>
+                    <span className="font-bold">{selectedItem.settings.gridLeft}%</span>
+                  </div>
+                  <input type="range" min="0" max="50" step="0.5" value={selectedItem.settings.gridLeft} onChange={(e) => handleSettingChange('gridLeft', parseFloat(e.target.value))} className="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+                </div>
+                {/* Grid Height */}
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-indigo-700 mb-1">
+                    <span>Alto (Escala Y)</span>
+                    <span className="font-bold">{selectedItem.settings.gridHeight}%</span>
+                  </div>
+                  <input type="range" min="30" max="100" step="0.5" value={selectedItem.settings.gridHeight} onChange={(e) => handleSettingChange('gridHeight', parseFloat(e.target.value))} className="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+                </div>
+                {/* Grid Width */}
+                <div>
+                  <div className="flex justify-between text-[11px] font-semibold text-indigo-700 mb-1">
+                    <span>Ancho (Escala X)</span>
+                    <span className="font-bold">{selectedItem.settings.gridWidth}%</span>
+                  </div>
+                  <input type="range" min="30" max="100" step="0.5" value={selectedItem.settings.gridWidth} onChange={(e) => handleSettingChange('gridWidth', parseFloat(e.target.value))} className="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+                </div>
+              </div>
+
               {/* View Toggle: Processed Photo vs Binarized Black & White */}
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-slate-600">Vista previa en tiempo real:</span>
@@ -748,16 +797,45 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
               </div>
 
               {/* Preview Display Window */}
-              <div className="relative w-full aspect-4/3 sm:aspect-16/10 bg-slate-900 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center p-2 shadow-inner">
-                <img
-                  src={
-                    selectedItem.settings.showBinarized && selectedItem.binarizedPreviewUrl
-                      ? selectedItem.binarizedPreviewUrl
-                      : selectedItem.processedPreviewUrl || selectedItem.page.dataUrl
-                  }
-                  alt="Previsualización OMR"
-                  className="max-w-full max-h-full object-contain rounded shadow-lg"
-                />
+              <div className="relative w-full h-[500px] bg-slate-900 rounded-xl overflow-y-auto overflow-x-hidden border border-slate-800 flex items-start justify-center p-4 shadow-inner">
+                <div className="relative inline-block max-w-full">
+                  <img
+                    src={
+                      selectedItem.settings.showBinarized && selectedItem.binarizedPreviewUrl
+                        ? selectedItem.binarizedPreviewUrl
+                        : selectedItem.processedPreviewUrl || selectedItem.page.dataUrl
+                    }
+                    alt="Previsualización OMR"
+                    className="block max-w-full h-auto rounded shadow-lg select-none"
+                  />
+                  {/* Grid Overlay */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    {computeSheetOverlayCoordinates(
+                      template.totalQuestions,
+                      template.optionsPerQuestion,
+                      selectedItem.settings.gridTop,
+                      selectedItem.settings.gridHeight,
+                      selectedItem.settings.gridLeft,
+                      selectedItem.settings.gridWidth
+                    ).map((item) => (
+                      <div key={item.questionNumber}>
+                        {item.options.map((opt) => (
+                          <div
+                            key={opt.letter}
+                            className="absolute rounded-full border-2 border-indigo-500/80 bg-indigo-500/20 shadow-xs"
+                            style={{
+                              left: `${opt.x}%`,
+                              top: `${opt.y}%`,
+                              width: `${opt.radius * 2.2}%`,
+                              height: `${opt.radius * 2.2}%`,
+                              transform: 'translate(-50%, -50%)',
+                            }}
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-lg text-white text-xs flex items-center space-x-2 border border-slate-700">
                   <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
