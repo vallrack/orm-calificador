@@ -58,7 +58,14 @@ export const deleteTemplate = async (userId: string, templateId: string) => {
 
 export const saveResult = async (userId: string, result: StudentExamResult) => {
   try {
-    await setDoc(doc(db, "users", userId, "results", result.id), result);
+    // Clone result to avoid mutating the React state
+    const resultToSave = { ...result };
+    // Remove heavy base64 images to prevent Firestore 1MB document size limit error
+    delete resultToSave.imageUrl;
+    delete resultToSave.processedImageUrl;
+    delete resultToSave.binarizedImageUrl;
+    
+    await setDoc(doc(db, "users", userId, "results", result.id), resultToSave);
   } catch (error) {
     console.error("Error saving result to Firestore:", error);
   }

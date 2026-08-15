@@ -80,8 +80,17 @@ export default function App() {
     localStorage.setItem('omr_active_template_id', activeTemplateId);
   }, [templates, activeTemplateId]);
 
+  // Persist results to localStorage
   useEffect(() => {
-    localStorage.setItem('omr_student_results', JSON.stringify(results));
+    try {
+      const lightweightResults = results.map(r => {
+        const { imageUrl, processedImageUrl, binarizedImageUrl, ...rest } = r;
+        return rest as StudentExamResult;
+      });
+      localStorage.setItem('omr_student_results', JSON.stringify(lightweightResults));
+    } catch (e) {
+      console.warn("Could not save results to localStorage (might be full).", e);
+    }
   }, [results]);
 
   // Derived Class Statistics (RF-10) filtered by active template
