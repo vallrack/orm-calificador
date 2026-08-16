@@ -56,7 +56,7 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
     autoRotate: true,
     deskew: false,
     contrast: 1.2,
-    brightness: 1.0,
+    brightness: 0.05,
     threshold: 128,
     showBinarized: false,
     cropTop: 0,
