@@ -21,43 +21,43 @@ function buildOMRPrompt(totalQuestions: number, optionsPerQuestion: number, expe
   const letters = optionsPerQuestion === 5 ? 'a, b, c, d, e'
     : optionsPerQuestion === 3 ? 'a, b, c' : 'a, b, c, d';
   const count = optionsPerQuestion;
-  
+
   let expectedKeysSection = '';
   if (expectedKeys && Object.keys(expectedKeys).length > 0) {
     expectedKeysSection = `
 == EXPECTED ANSWERS (CONTEXT FOR VERIFICATION) ==
 The following are the expected correct answers for this exam.
-Use these ONLY as a strong hint when a mark is ambiguous or faint. 
+Use these ONLY as a strong hint when a mark is ambiguous or faint.
 If the student clearly marked a DIFFERENT bubble, you MUST output what the student marked, NOT the expected answer.
 Expected keys: ${JSON.stringify(expectedKeys)}
 `;
   }
 
-  return `You are a precise OMR (Optical Mark Recognition) scanner analyzing a Colombian school multiple-choice answer sheet.
+  return `You are analyzing a Colombian school multiple-choice answer sheet (hoja de respuestas).
 
-== SHEET STRUCTURE ==
-- Top section: handwritten student name ("Nombre del Estudiante") and grade/group ("Grado"/"Curso")
+== YOUR PRIMARY TASK ==
+Extract the HANDWRITTEN student name and grade/group from the top section of the sheet.
+The sheet has a header with two fields:
+- "Nombre del Estudiante" or "Nombre:" → this is the student's full name (handwritten in cursive or print)
+- "Grado:" or "Curso:" or "Grupo:" → this is the class/grade code (e.g. "10-1", "11A", "9B", "10°1")
+
+== NAME READING TIPS ==
+- Colombian names can be compound (e.g. "Maria Fernanda", "Luis Carlos", "Juan Pablo")
+- Last names come after first names, often two last names (e.g. "Valeria Buriticá Gómez")
+- Read carefully even if handwriting is sloppy — guess the most likely Spanish name
+- If completely illegible, return an empty string ""
+- Do NOT include the field label ("Nombre:", "Grado:") in your output — only the value
+
+== BUBBLE READING ==
 - Body: rows numbered 1 to ${totalQuestions}
-- Each row has exactly ${count} answer bubbles arranged LEFT-TO-RIGHT labeled: ${letters}
-  (leftmost bubble = a, next = b, next = c${count >= 4 ? ', rightmost = d' : ''}${count === 5 ? ', last = e' : ''})
+- Each row has exactly ${count} bubbles labeled ${letters} (left to right)
+- FILLED = darkened circle or clear mark inside
+- EMPTY = open circle, no mark inside
+- Exactly 1 filled → return its letter. Multiple filled → "MULTIPLE". None → "BLANK"
 ${expectedKeysSection}
-== HOW TO READ EACH ROW ==
-For question row N:
-  - Scan all ${count} bubbles from left to right
-  - FILLED bubble = darkened circle, solid square, heavy mark, or clear scribble inside
-  - EMPTY bubble = open circle, light ring, no mark inside
-  - If EXACTLY ONE is filled -> write its letter (position from left: 1st=a, 2nd=b, 3rd=c, 4th=d)
-  - If TWO OR MORE are filled -> "MULTIPLE"
-  - If NONE are filled -> "BLANK"
-
-== RULES ==
-- Process every row from 1 to ${totalQuestions} in order. Do NOT skip any.
-- Answer letter = POSITION from left. Do not rely on labels, count positions.
-- Read handwritten names as accurately as possible.
-
 == OUTPUT ==
-Return ONLY valid JSON (no markdown, no code fences):
-{"studentName":"<name>","grade":"<grade>","answers":[{"questionNumber":1,"selectedOption":"<letter|BLANK|MULTIPLE>","isDoubleMark":false,"isBlank":false}],"confidence":0.9,"anomalies":[]}
+Return ONLY valid JSON, no markdown:
+{"studentName":"<full name>","grade":"<grade/group code>","answers":[{"questionNumber":1,"selectedOption":"<letter|BLANK|MULTIPLE>","isDoubleMark":false,"isBlank":false}],"confidence":0.9,"anomalies":[]}
 The answers array MUST have exactly ${totalQuestions} entries.`;
 }
 

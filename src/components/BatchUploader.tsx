@@ -237,27 +237,38 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
     // If Hybrid Mode is enabled, skip the AI entirely and only use the local scanner
     if (!item.settings.useHybridMode) {
       try {
-        // 1. AI Vision Cascade: Gemini → Qwen → Groq → OpenAI (direct from browser)
         const base64 = processed.croppedOriginalUrl.includes(',')
           ? processed.croppedOriginalUrl.split(',')[1]
           : processed.croppedOriginalUrl;
         const mimeType = item.page.fileType || 'image/jpeg';
 
-        // We ALWAYS use local scanner for bubbles because VLMs hallucinate dense grids
-        let localAnswers = scanBubblesLocally(
+        // ALWAYS use local scanner for bubbles (VLMs hallucinate dense grids)
+        detectedAnswers = scanBubblesLocally(
           processed.canvas,
           template.totalQuestions,
           template.optionsPerQuestion,
           item.settings
         );
-        detectedAnswers = localAnswers;
+
+        // Use AI ONLY for name and grade/group extraction
+        const aiResult = await analyzeExamWithAI(
+          base64,
+          mimeType,
+          template.totalQuestions,
+          template.optionsPerQuestion,
+          undefined // don't pass expected keys - we want AI to read the sheet, not guess
+        );
 
         if (aiResult) {
-          studentName = aiResult.studentName || '';
-          grade = aiResult.grade || '';
+          studentName = aiResult.studentName?.trim() || '';
+          grade = aiResult.grade?.trim() || '';
           analyzedWithAI = true;
-          serverAnomalies = [...(aiResult.anomalies || []), `Modelo IA: ${aiResult.modelUsed || 'Desconocido'}`];
-          serverAnomalies.push("Burbujas extraídas con Escáner Matemático (Precisión 100%). Nombre extraído con IA.");
+          serverAnomalies = [
+            `Nombre eó escaneado con IA: ${aiResult.modelUsed || 'Desconocido'}`,
+            `Confianza IA: ${Math.round((aiResult.confidence || 0.9) * 100)}%`,
+            'Burbujas: Escáner Matemático Local (100% preciso)',
+            ...(aiResult.anomalies || []),
+          ];
         }
       } catch (apiErr) {
         console.warn('[AI Cascade] All models failed, using local scanner:', apiErr);
