@@ -355,10 +355,9 @@ export function scanBubblesLocally(
     // --- Pure Relative Decision ---
     // A bubble is "clearly marked" if it is at least RELATIVE_FACTOR times darker
     // than the average of all the OTHER bubbles in the same row.
-    // This handles: light pencil, scanner noise, empty bubble outlines.
-    const RELATIVE_FACTOR = 1.5;   // winner must be 1.5x darker than average of others
-    const ABS_MIN = 0.08;          // winner must still be at least 8% dark (eliminates all-blank rows)
-    const DOUBLE_GAP = 0.06;       // if top-2 are within 6% of each other → MULTIPLE
+    const RELATIVE_FACTOR = 1.25;  // winner must be 25% darker than average of others
+    const ABS_MIN = 0.05;          // winner must still be at least 5% dark (for faint pencil)
+    const DOUBLE_GAP = 0.05;       // if top-2 are within 5% of each other → MULTIPLE
 
     const isWinnerDark = highest.darkness >= ABS_MIN;
     const isClearWinner = isWinnerDark && (avgOthers === 0 || highest.darkness >= avgOthers * RELATIVE_FACTOR);
