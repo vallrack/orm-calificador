@@ -110,5 +110,6 @@ export interface PreprocessSettings {
   gridLeft: number;
   gridWidth: number;
   gridHeight: number;
+  gridTilt: number; // Vertical offset per column (handles rotation/skew)
   useHybridMode: boolean;
 }

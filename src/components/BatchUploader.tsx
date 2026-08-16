@@ -54,9 +54,9 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
   // Preprocessing state for active preview
   const [globalSettings, setGlobalSettings] = useState<PreprocessSettings>({
     autoRotate: true,
-    deskew: true,
-    contrast: 1.15,
-    brightness: 0.05,
+    deskew: false,
+    contrast: 1.2,
+    brightness: 1.0,
     threshold: 128,
     showBinarized: false,
     cropTop: 0,
@@ -67,7 +67,8 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
     gridLeft: 6,
     gridWidth: 88,
     gridHeight: 72,
-    useHybridMode: false,
+    gridTilt: 0, // Initial tilt is 0
+    useHybridMode: true,
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -741,8 +742,8 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
               </div>
 
               {/* Grid Alignment Sliders (Siempre visibles porque el escáner local es primario) */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mt-4">
-                  <div className="col-span-2 sm:col-span-4 text-xs font-bold text-indigo-800 flex items-center justify-between">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mt-4">
+                  <div className="col-span-2 sm:col-span-5 text-xs font-bold text-indigo-800 flex items-center justify-between">
                     <span>Alineación Manual de Grilla (Modo Híbrido)</span>
                     <span className="font-normal text-[10px] text-indigo-600">Para calificación local 100% precisa</span>
                   </div>
@@ -777,6 +778,14 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
                       <span className="font-bold">{selectedItem.settings.gridWidth}%</span>
                     </div>
                     <input type="range" min="30" max="100" step="0.5" value={selectedItem.settings.gridWidth} onChange={(e) => handleSettingChange('gridWidth', parseFloat(e.target.value))} className="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+                  </div>
+                  {/* Grid Tilt */}
+                  <div>
+                    <div className="flex justify-between text-[11px] font-semibold text-indigo-700 mb-1">
+                      <span>Inclinación Y</span>
+                      <span className="font-bold">{selectedItem.settings.gridTilt}%</span>
+                    </div>
+                    <input type="range" min="-10" max="10" step="0.1" value={selectedItem.settings.gridTilt || 0} onChange={(e) => handleSettingChange('gridTilt', parseFloat(e.target.value))} className="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" title="Ajusta la caída o subida por cada columna para compensar fotos rotadas" />
                   </div>
                 </div>
 
@@ -829,7 +838,8 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
                       selectedItem.settings.gridTop,
                       selectedItem.settings.gridHeight,
                       selectedItem.settings.gridLeft,
-                      selectedItem.settings.gridWidth
+                      selectedItem.settings.gridWidth,
+                      selectedItem.settings.gridTilt || 0
                     ).map((item) => (
                       <div key={item.questionNumber}>
                         {item.options.map((opt) => (

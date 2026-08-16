@@ -203,7 +203,8 @@ export function computeSheetOverlayCoordinates(
   gridTop: number = 22, // % from top
   gridHeight: number = 72, // % of total height
   gridLeft: number = 6, // % from left
-  gridWidth: number = 88 // % width available
+  gridWidth: number = 88, // % width available
+  gridTilt: number = 0 // % offset applied per column
 ): BubbleCoordinates[] {
   const letters: OptionLetter[] = ['a', 'b', 'c', 'd', 'e', 'f'].slice(0, optionsPerQuestion) as OptionLetter[];
   
@@ -223,7 +224,8 @@ export function computeSheetOverlayCoordinates(
     const rowIndex = (q - 1) % questionsPerColumn;
 
     const colX = gridLeft + colIndex * colWidth;
-    const rowY = gridTop + rowIndex * rowHeight;
+    // Add gridTilt * colIndex to skew the rows downwards or upwards per column
+    const rowY = gridTop + rowIndex * rowHeight + (colIndex * gridTilt);
 
     const bubbleOpts = letters.map((letter, optIdx) => {
       // Offset after question number label (~25% of column for label, remaining 75% for bubbles a,b,c,d)
@@ -283,7 +285,7 @@ export function scanBubblesLocally(
   }
 
   const overlayCoords = computeSheetOverlayCoordinates(
-    totalQuestions, optionsPerQuestion, gridTop, gridHeight, gridLeft, gridWidth
+    totalQuestions, optionsPerQuestion, gridTop, gridHeight, gridLeft, gridWidth, settings?.gridTilt ?? 0
   );
   const results: Record<number, OptionLetter | 'MULTIPLE' | 'BLANK'> = {};
 
