@@ -22,43 +22,54 @@ function buildOMRPrompt(totalQuestions: number, optionsPerQuestion: number, expe
     : optionsPerQuestion === 3 ? 'a, b, c' : 'a, b, c, d';
   const count = optionsPerQuestion;
 
-  let expectedKeysSection = '';
+  let keySection = '';
   if (expectedKeys && Object.keys(expectedKeys).length > 0) {
-    expectedKeysSection = `
-== EXPECTED ANSWERS (CONTEXT FOR VERIFICATION) ==
-The following are the expected correct answers for this exam.
-Use these ONLY as a strong hint when a mark is ambiguous or faint.
-If the student clearly marked a DIFFERENT bubble, you MUST output what the student marked, NOT the expected answer.
-Expected keys: ${JSON.stringify(expectedKeys)}
+    const keyList = Object.entries(expectedKeys)
+      .sort((a, b) => Number(a[0]) - Number(b[0]))
+      .map(([q, l]) => `Q${q}=${l.toUpperCase()}`)
+      .join(', ');
+    keySection = `
+== MASTER ANSWER KEY (use this to CONFIRM ambiguous marks) ==
+${keyList}
+
+IMPORTANT RULES FOR USING THE KEY:
+- If a student clearly and darkly filled a DIFFERENT bubble than the key → output what the student marked (they got it wrong)
+- If a mark is faint, smudged, or ambiguous AND one candidate matches the key → prefer the key answer
+- If no bubble is clearly marked and the key says Q5=A → still output "BLANK" (do not invent marks)
+- The key is a HINT for ambiguous cases only, never override a clear dark mark
 `;
   }
 
-  return `You are analyzing a Colombian school multiple-choice answer sheet (hoja de respuestas).
+  return `You are an OMR (Optical Mark Recognition) scanner for a Colombian school exam sheet.
 
-== YOUR PRIMARY TASK ==
-Extract the HANDWRITTEN student name and grade/group from the top section of the sheet.
-The sheet has a header with two fields:
-- "Nombre del Estudiante" or "Nombre:" → this is the student's full name (handwritten in cursive or print)
-- "Grado:" or "Curso:" or "Grupo:" → this is the class/grade code (e.g. "10-1", "11A", "9B", "10°1")
+== HOW TO IDENTIFY A MARKED BUBBLE ==
+A student marks ONE bubble per question by filling it in with pen or pencil.
+- FILLED/MARKED bubble: The circle interior is darkly shaded, blacked out, or has a clear heavy scribble inside
+- EMPTY bubble: The circle has only a printed thin outline ring (no interior fill)
+- KEY DISTINCTION: Look for DARKNESS INSIDE the circle, not just the presence of the circle outline
+- Even light pencil marks create a noticeably darker interior compared to empty printed rings
 
-== NAME READING TIPS ==
-- Colombian names can be compound (e.g. "Maria Fernanda", "Luis Carlos", "Juan Pablo")
-- Last names come after first names, often two last names (e.g. "Valeria Buriticá Gómez")
-- Read carefully even if handwriting is sloppy — guess the most likely Spanish name
-- If completely illegible, return an empty string ""
-- Do NOT include the field label ("Nombre:", "Grado:") in your output — only the value
+== SHEET STRUCTURE ==
+- Top header (handwritten): "Nombre del Estudiante" = student full name | "Grado/Curso" = class code (e.g. "10-1", "11A")
+- Body: rows 1 to ${totalQuestions}, each with ${count} bubbles labeled ${letters} (left to right)
 
-== BUBBLE READING ==
-- Body: rows numbered 1 to ${totalQuestions}
-- Each row has exactly ${count} bubbles labeled ${letters} (left to right)
-- FILLED = darkened circle or clear mark inside
-- EMPTY = open circle, no mark inside
-- Exactly 1 filled → return its letter. Multiple filled → "MULTIPLE". None → "BLANK"
-${expectedKeysSection}
-== OUTPUT ==
-Return ONLY valid JSON, no markdown:
-{"studentName":"<full name>","grade":"<grade/group code>","answers":[{"questionNumber":1,"selectedOption":"<letter|BLANK|MULTIPLE>","isDoubleMark":false,"isBlank":false}],"confidence":0.9,"anomalies":[]}
-The answers array MUST have exactly ${totalQuestions} entries.`;
+== READING EACH ROW ==
+1. Look at all ${count} bubbles in the row from left to right
+2. Find which circle has a DARK FILLED interior (not just the outline ring)
+3. Count position from left: 1st bubble = a, 2nd = b, 3rd = c, 4th = d
+4. Exactly 1 filled → output its letter
+5. 2 or more filled → "MULTIPLE"  
+6. None filled (all just empty rings) → "BLANK"
+${keySection}
+== STUDENT NAME READING (Colombian format) ==
+- Colombian students have compound names: e.g. "Maria Fernanda Buriticá Gómez"
+- Read carefully from the handwritten header field — may be in cursive
+- Do NOT include "Nombre:" or "Grado:" labels in your output
+
+== OUTPUT FORMAT ==
+Return ONLY valid JSON (no markdown, no code fences):
+{"studentName":"<full name>","grade":"<grade code>","answers":[{"questionNumber":1,"selectedOption":"<letter|BLANK|MULTIPLE>","isDoubleMark":false,"isBlank":false}],"confidence":0.9,"anomalies":[]}
+The answers array MUST have exactly ${totalQuestions} entries in order.`;
 }
 
 function parseAIResponse(raw: string): AIVisionResult | null {
