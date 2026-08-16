@@ -246,18 +246,20 @@ export function computeSheetOverlayCoordinates(
     const rowHeight = activeHeight;
 
     const bubbleOpts = letters.map((letter, optIdx) => {
-      // Offset after question number label (~25% of column for label, remaining 75% for bubbles a,b,c,d)
-      const labelOffset = colWidth * 0.22;
-      const bubbleAreaWidth = colWidth - labelOffset;
-      const optSpacing = bubbleAreaWidth / optionsPerQuestion;
+      // Default: Offset after question number label (~25% of column for label, remaining 75% for bubbles a,b,c,d)
+      const defaultLabelOffset = colWidth * 0.25;
+      const defaultOptionSpacing = (colWidth * 0.75) / optionsPerQuestion;
       
-      const bx = colX + labelOffset + (optIdx + 0.5) * optSpacing;
-      const by = rowY + rowHeight * 0.5;
-
+      const labelOffset = colOverride.bubbleOffset !== undefined ? colOverride.bubbleOffset : defaultLabelOffset;
+      const optionSpacing = colOverride.bubbleSpacing !== undefined ? colOverride.bubbleSpacing : defaultOptionSpacing;
+      
+      const optX = colX + labelOffset + (optIdx * optionSpacing) + (optionSpacing / 2);
+      const optY = rowY + (rowHeight / 2);
+      
       return {
         letter,
-        x: bx,
-        y: by,
+        x: optX,
+        y: optY,
         radius: Math.min(colWidth, rowHeight) * 0.28,
       };
     });

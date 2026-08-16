@@ -905,6 +905,84 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
                       />
                     </div>
                   </div>
+
+                  {/* Sub-column tweaks (Bubble offset and spacing) */}
+                  <div className="mt-4 pt-4 border-t border-indigo-200 grid grid-cols-2 gap-4">
+                    <div className="col-span-full text-[11px] font-bold text-amber-800">
+                      Ajuste Fino de Burbujas Internas (Margen y Espaciado)
+                    </div>
+                    {/* Bubble Offset */}
+                    <div>
+                      <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-1">
+                        <span>Margen Izq. Burbujas</span>
+                        <span className="font-bold">
+                          {selectedSectionIndex === -1 
+                            ? (selectedItem.settings.gridWidth / Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10)) * 0.25).toFixed(1)
+                            : (selectedItem.settings.sectionOverrides?.[selectedSectionIndex]?.bubbleOffset ?? (
+                                (selectedItem.settings.sectionOverrides?.[selectedSectionIndex]?.width ?? (selectedItem.settings.gridWidth / Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10)))) * 0.25
+                              )).toFixed(1)}%
+                        </span>
+                      </div>
+                      <input 
+                        type="range" min="0" max="20" step="0.1" 
+                        value={
+                          selectedItem.settings.sectionOverrides?.[selectedSectionIndex === -1 ? 0 : selectedSectionIndex]?.bubbleOffset ?? (
+                            (selectedItem.settings.sectionOverrides?.[selectedSectionIndex === -1 ? 0 : selectedSectionIndex]?.width ?? (selectedItem.settings.gridWidth / Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10)))) * 0.25
+                          )
+                        } 
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          // If global, we apply it to ALL existing overrides, or if none, we create them
+                          const targetIndices = selectedSectionIndex === -1 
+                            ? Array.from({ length: Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10)) }).map((_, i) => i) 
+                            : [selectedSectionIndex];
+                            
+                          const overrides = [...(selectedItem.settings.sectionOverrides || [])];
+                          targetIndices.forEach(idx => {
+                            if (!overrides[idx]) overrides[idx] = {};
+                            overrides[idx].bubbleOffset = val;
+                          });
+                          handleSettingChange('sectionOverrides', overrides);
+                        }} 
+                        className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer ${selectedSectionIndex === -1 ? 'bg-indigo-200 accent-indigo-600' : 'bg-emerald-200 accent-emerald-600'}`} 
+                      />
+                    </div>
+                    {/* Bubble Spacing */}
+                    <div>
+                      <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-1">
+                        <span>Espaciado entre Burbujas</span>
+                        <span className="font-bold">
+                          {selectedSectionIndex === -1 
+                            ? ((selectedItem.settings.gridWidth / Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10)) * 0.75) / template.optionsPerQuestion).toFixed(1)
+                            : (selectedItem.settings.sectionOverrides?.[selectedSectionIndex]?.bubbleSpacing ?? (
+                                ((selectedItem.settings.sectionOverrides?.[selectedSectionIndex]?.width ?? (selectedItem.settings.gridWidth / Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10)))) * 0.75) / template.optionsPerQuestion
+                              )).toFixed(1)}%
+                        </span>
+                      </div>
+                      <input 
+                        type="range" min="0" max="15" step="0.1" 
+                        value={
+                          selectedItem.settings.sectionOverrides?.[selectedSectionIndex === -1 ? 0 : selectedSectionIndex]?.bubbleSpacing ?? (
+                            ((selectedItem.settings.sectionOverrides?.[selectedSectionIndex === -1 ? 0 : selectedSectionIndex]?.width ?? (selectedItem.settings.gridWidth / Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10)))) * 0.75) / template.optionsPerQuestion
+                          )
+                        } 
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          const targetIndices = selectedSectionIndex === -1 
+                            ? Array.from({ length: Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10)) }).map((_, i) => i) 
+                            : [selectedSectionIndex];
+                            
+                          const overrides = [...(selectedItem.settings.sectionOverrides || [])];
+                          targetIndices.forEach(idx => {
+                            if (!overrides[idx]) overrides[idx] = {};
+                            overrides[idx].bubbleSpacing = val;
+                          });
+                          handleSettingChange('sectionOverrides', overrides);
+                        }} 
+                        className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer ${selectedSectionIndex === -1 ? 'bg-indigo-200 accent-indigo-600' : 'bg-emerald-200 accent-emerald-600'}`} 
+                      />
+                    </div>
+                  </div>
                 </div>
 
               {/* View Toggle: Processed Photo vs Binarized Black & White */}

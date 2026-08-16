@@ -116,6 +116,8 @@ export interface PreprocessSettings {
     left?: number;
     width?: number;
     height?: number;
+    bubbleOffset?: number; // X offset for the bubbles from the left of the column
+    bubbleSpacing?: number; // X spacing between bubbles
   }[]; // Independent X, Y, W, H per column
   useHybridMode: boolean;
 }
