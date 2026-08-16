@@ -73,6 +73,8 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
   });
 
   const [selectedSectionIndex, setSelectedSectionIndex] = useState<number>(-1); // -1 = Todas las Secciones
+  const dragState = useRef<{ colIndex: number; startX: number; startY: number; origLeft: number; origTop: number } | null>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -1016,7 +1018,29 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
 
               {/* Preview Display Window */}
               <div className="relative w-full h-[500px] bg-slate-900 rounded-xl overflow-y-auto overflow-x-hidden border border-slate-800 flex items-start justify-center p-4 shadow-inner mt-2">
-                <div className="relative inline-block max-w-full">
+                <div
+                  className="relative inline-block max-w-full"
+                  onMouseMove={(e) => {
+                    if (!dragState.current || !overlayRef.current) return;
+                    const rect = overlayRef.current.getBoundingClientRect();
+                    const dx = ((e.clientX - dragState.current.startX) / rect.width) * 100;
+                    const dy = ((e.clientY - dragState.current.startY) / rect.height) * 100;
+                    const colIdx = dragState.current.colIndex;
+                    const overrides = [...(selectedItem.settings.sectionOverrides || [])];
+                    if (!overrides[colIdx]) overrides[colIdx] = {};
+                    if (colIdx === -1) {
+                      // Global drag: update gridLeft and gridTop
+                      handleSettingChange('gridLeft', Math.max(0, Math.min(100, dragState.current.origLeft + dx)));
+                      handleSettingChange('gridTop', Math.max(0, Math.min(100, dragState.current.origTop + dy)));
+                    } else {
+                      overrides[colIdx].left = Math.max(0, Math.min(100, dragState.current.origLeft + dx));
+                      overrides[colIdx].top = Math.max(0, Math.min(100, dragState.current.origTop + dy));
+                      handleSettingChange('sectionOverrides', overrides);
+                    }
+                  }}
+                  onMouseUp={() => { dragState.current = null; }}
+                  onMouseLeave={() => { dragState.current = null; }}
+                >
                   <img
                     src={
                       selectedItem.settings.showBinarized && selectedItem.binarizedPreviewUrl
@@ -1025,34 +1049,64 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
                     }
                     alt="Previsualización OMR"
                     className="block max-w-full h-auto rounded shadow-lg select-none"
+                    ref={overlayRef as any}
                   />
-                  {/* Grid Overlay - Siempre visible para alinear perfectamente */}
-                  <div className="absolute inset-0 pointer-events-none">
-                    {computeSheetOverlayCoordinates(
-                      template.totalQuestions,
-                      template.optionsPerQuestion,
-                      selectedItem.settings.gridTop,
-                      selectedItem.settings.gridHeight,
-                      selectedItem.settings.gridLeft,
-                      selectedItem.settings.gridWidth,
-                      selectedItem.settings.columnOffsets || []
-                    ).map((item) => (
-                      <div key={item.questionNumber}>
-                        {item.options.map((opt) => (
-                          <div
-                            key={opt.letter}
-                            className="absolute rounded-full border-2 border-emerald-500 bg-emerald-400/30 shadow-xs"
-                            style={{
-                              left: `${opt.x}%`,
-                              top: `${opt.y}%`,
-                              width: `${Math.max(2, opt.radius * 1.5)}%`,
-                              aspectRatio: '1 / 1',
-                              transform: 'translate(-50%, -50%)',
-                            }}
-                          />
-                        ))}
-                      </div>
-                    ))}
+                  {/* Grid Overlay — drag enabled per column */}
+                  <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
+                    {(() => {
+                      const numCols = Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10));
+                      const allCoords = computeSheetOverlayCoordinates(
+                        template.totalQuestions,
+                        template.optionsPerQuestion,
+                        selectedItem.settings.gridTop,
+                        selectedItem.settings.gridHeight,
+                        selectedItem.settings.gridLeft,
+                        selectedItem.settings.gridWidth,
+                        selectedItem.settings
+                      );
+                      return allCoords.map((item) => {
+                        const colIdx = Math.floor((item.questionNumber - 1) / (selectedItem.settings.questionsPerColumn || 10));
+                        const isSelectedCol = selectedSectionIndex === -1 || colIdx === selectedSectionIndex;
+                        const borderColor = isSelectedCol ? 'border-emerald-400' : 'border-emerald-600/40';
+                        const bgColor = isSelectedCol ? 'bg-emerald-400/30' : 'bg-emerald-600/10';
+                        return (
+                          <div key={item.questionNumber}>
+                            {item.options.map((opt) => (
+                              <div
+                                key={opt.letter}
+                                className={`absolute rounded-full border-2 ${borderColor} ${bgColor} shadow-xs`}
+                                style={{
+                                  left: `${opt.x}%`,
+                                  top: `${opt.y}%`,
+                                  width: `${Math.max(2, opt.radius * 1.5)}%`,
+                                  aspectRatio: '1 / 1',
+                                  transform: 'translate(-50%, -50%)',
+                                  pointerEvents: isSelectedCol ? 'auto' : 'none',
+                                  cursor: isSelectedCol ? 'grab' : 'default',
+                                }}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  const overrides = selectedItem.settings.sectionOverrides || [];
+                                  const origLeft = selectedSectionIndex === -1
+                                    ? selectedItem.settings.gridLeft
+                                    : (overrides[selectedSectionIndex]?.left ?? (selectedItem.settings.gridLeft + selectedSectionIndex * (selectedItem.settings.gridWidth / numCols)));
+                                  const origTop = selectedSectionIndex === -1
+                                    ? selectedItem.settings.gridTop
+                                    : (overrides[selectedSectionIndex]?.top ?? selectedItem.settings.gridTop);
+                                  dragState.current = {
+                                    colIndex: selectedSectionIndex,
+                                    startX: e.clientX,
+                                    startY: e.clientY,
+                                    origLeft,
+                                    origTop,
+                                  };
+                                }}
+                              />
+                            ))}
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               </div>
