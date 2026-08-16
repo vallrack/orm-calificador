@@ -304,57 +304,84 @@ export function scanBubblesLocally(
     const densities: { letter: OptionLetter; darkness: number }[] = [];
 
     for (const opt of item.options) {
+      // Convert % positions to pixel coordinates
       const pixelX = Math.round((opt.x / 100) * width);
       const pixelY = Math.round((opt.y / 100) * height);
-      const radiusPx = Math.round((opt.radius / 100) * Math.min(width, height));
 
-      const boxSize = Math.max(4, radiusPx * 2);
+      // Radius in pixels: use width-based % since coordinates are in % of image width
+      // Use a slightly smaller radius to avoid sampling neighboring bubbles
+      const radiusPx = Math.max(3, Math.round((opt.radius / 100) * width * 0.85));
+
       const startX = Math.max(0, pixelX - radiusPx);
       const startY = Math.max(0, pixelY - radiusPx);
-
-      const sampleW = Math.min(boxSize, width - startX);
-      const sampleH = Math.min(boxSize, height - startY);
+      const sampleW = Math.min(radiusPx * 2, width - startX);
+      const sampleH = Math.min(radiusPx * 2, height - startY);
 
       if (sampleW <= 0 || sampleH <= 0) continue;
 
       const imgData = ctx.getImageData(startX, startY, sampleW, sampleH);
       const data = imgData.data;
-      
+
       let darkPixels = 0;
       let totalSampled = 0;
+      const cx = sampleW / 2;
+      const cy = sampleH / 2;
 
-      for (let p = 0; p < data.length; p += 4) {
-        const r = data[p];
-        const g = data[p + 1];
-        const b = data[p + 2];
-        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        if (gray < 110) {
-          darkPixels++;
+      for (let py = 0; py < sampleH; py++) {
+        for (let px = 0; px < sampleW; px++) {
+          // Only sample pixels within the circular area
+          const distSq = (px - cx) ** 2 + (py - cy) ** 2;
+          if (distSq > (radiusPx * 0.9) ** 2) continue;
+
+          const p = (py * sampleW + px) * 4;
+          const gray = 0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2];
+          if (gray < 128) darkPixels++;
+          totalSampled++;
         }
-        totalSampled++;
       }
 
       const darknessRatio = totalSampled > 0 ? darkPixels / totalSampled : 0;
       densities.push({ letter: opt.letter, darkness: darknessRatio });
     }
 
-    // Sort by darkness
-    densities.sort((a, b) => b.darkness - a.darkness);
+    if (densities.length === 0) {
+      results[item.questionNumber] = 'BLANK';
+      continue;
+    }
 
+    // Sort by darkness descending
+    densities.sort((a, b) => b.darkness - a.darkness);
     const highest = densities[0];
     const secondHighest = densities[1];
+    const rest = densities.slice(2);
 
-    const DARKNESS_THRESHOLD = 0.32;
-    const DIFFERENCE_MARGIN = 0.15;
+    // Adaptive thresholds:
+    // MIN_ABSOLUTE: bubble must have at least 8% dark pixels to not be "blank"
+    // RELATIVE_MARGIN: the winner must be at least 1.5x darker than runner-up
+    const MIN_ABSOLUTE = 0.08;
+    const RELATIVE_FACTOR = 1.45; // winner must be 45% darker than 2nd place
+    const DOUBLE_MARK_MARGIN = 0.10; // both must be within 10% of each other
 
-    if (!highest || highest.darkness < DARKNESS_THRESHOLD) {
+    if (highest.darkness < MIN_ABSOLUTE) {
+      // Nothing dark enough — blank
       results[item.questionNumber] = 'BLANK';
-    } else if (secondHighest && secondHighest.darkness > DARKNESS_THRESHOLD && (highest.darkness - secondHighest.darkness) < DIFFERENCE_MARGIN) {
+    } else if (
+      secondHighest &&
+      secondHighest.darkness >= MIN_ABSOLUTE &&
+      (highest.darkness - secondHighest.darkness) < DOUBLE_MARK_MARGIN
+    ) {
+      // Two bubbles very close in darkness — double mark
       results[item.questionNumber] = 'MULTIPLE';
+    } else if (secondHighest && highest.darkness < secondHighest.darkness * RELATIVE_FACTOR) {
+      // Winner isn't clearly darker than runner-up — likely noise, call it BLANK or MULTIPLE
+      // If both above threshold → MULTIPLE, else BLANK
+      results[item.questionNumber] = secondHighest.darkness >= MIN_ABSOLUTE ? 'MULTIPLE' : 'BLANK';
     } else {
+      // Clear winner
       results[item.questionNumber] = highest.letter;
     }
   }
 
   return results;
 }
+
