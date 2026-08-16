@@ -200,67 +200,58 @@ export interface BubbleCoordinates {
 export function computeSheetOverlayCoordinates(
   totalQuestions: number = 30,
   optionsPerQuestion: number = 4,
-  gridTop: number = 22, // % from top
-  gridHeight: number = 72, // % of total height
-  gridLeft: number = 6, // % from left
-  gridWidth: number = 88, // % width available
+  gridTop: number = 22,   // % from top where answer rows start
+  gridHeight: number = 72, // % height of the full answer block
+  gridLeft: number = 6,   // % from left where the answer block starts
+  gridWidth: number = 88,  // % width of the full answer block
   settings?: PreprocessSettings
 ): BubbleCoordinates[] {
   const letters: OptionLetter[] = ['a', 'b', 'c', 'd', 'e', 'f'].slice(0, optionsPerQuestion) as OptionLetter[];
-  
-  // Use configurable questions per column or fallback to standard logic
-  const questionsPerColumn = settings?.questionsPerColumn 
-    ? settings.questionsPerColumn 
-    : (totalQuestions <= 20 ? 10 : totalQuestions <= 40 ? 10 : 25);
+
+  const questionsPerColumn = settings?.questionsPerColumn ?? 10;
   const numColumns = Math.ceil(totalQuestions / questionsPerColumn);
-  
+
+  // Each "section" of the answer sheet has:
+  //   - A narrow question-number label column (~20% of section width)
+  //   - The remaining 80% divided equally among the bubbles (a, b, c, d)
+  // labelFraction: what fraction of a section is taken by the Q# label
+  const LABEL_FRACTION = 0.22; // 22% of section for the number, 78% for bubbles
+
   const coordinates: BubbleCoordinates[] = [];
 
   for (let q = 1; q <= totalQuestions; q++) {
     const colIndex = Math.floor((q - 1) / questionsPerColumn);
     const rowIndex = (q - 1) % questionsPerColumn;
 
-    // Base settings vs overrides for this specific column
-    const colOverride = settings?.sectionOverrides?.[colIndex] || {};
-    
-    // Width and height of the grid section for THIS column
-    // The width available for *one* column is (gridWidth / numColumns) base
-    // But if they override width, we use the override as the column's *own* width
-    const baseColWidth = gridWidth / numColumns;
-    const activeWidth = colOverride.width !== undefined ? colOverride.width : baseColWidth;
-    
-    const baseRowHeight = gridHeight / questionsPerColumn;
-    const activeHeight = colOverride.height !== undefined ? colOverride.height / questionsPerColumn : baseRowHeight;
+    const colOverride = settings?.sectionOverrides?.[colIndex] ?? {};
 
-    // Start X and Y for this column
-    const baseColX = gridLeft + colIndex * baseColWidth;
-    const activeColX = colOverride.left !== undefined ? colOverride.left : baseColX;
-    
-    const baseTop = gridTop;
-    const activeTop = colOverride.top !== undefined ? colOverride.top : baseTop;
+    // --- Section box (the full section rectangle in % of image) ---
+    const baseSectionWidth = gridWidth / numColumns;
+    const sectionWidth   = colOverride.width  !== undefined ? colOverride.width  : baseSectionWidth;
+    const sectionHeight  = colOverride.height !== undefined ? colOverride.height : gridHeight;
+    const sectionLeft    = colOverride.left   !== undefined ? colOverride.left   : gridLeft + colIndex * baseSectionWidth;
+    const sectionTop     = colOverride.top    !== undefined ? colOverride.top    : gridTop;
 
-    const colX = activeColX;
-    const rowY = activeTop + rowIndex * activeHeight;
-    
-    const colWidth = activeWidth;
-    const rowHeight = activeHeight;
+    // Row height within this section
+    const rowHeight = sectionHeight / questionsPerColumn;
+
+    // Y center of this row's bubbles
+    const rowY = sectionTop + rowIndex * rowHeight + rowHeight * 0.5;
+
+    // X: skip the label area, then space bubbles evenly
+    const labelWidth  = colOverride.bubbleOffset  !== undefined ? colOverride.bubbleOffset  : sectionWidth * LABEL_FRACTION;
+    const bubbleArea  = sectionWidth - labelWidth;
+    const bubbleStep  = colOverride.bubbleSpacing !== undefined ? colOverride.bubbleSpacing : bubbleArea / optionsPerQuestion;
+    const bubbleRadius = Math.min(sectionWidth / optionsPerQuestion, rowHeight) * 0.28;
 
     const bubbleOpts = letters.map((letter, optIdx) => {
-      // Default: Offset after question number label (~25% of column for label, remaining 75% for bubbles a,b,c,d)
-      const defaultLabelOffset = colWidth * 0.25;
-      const defaultOptionSpacing = (colWidth * 0.75) / optionsPerQuestion;
-      
-      const labelOffset = colOverride.bubbleOffset !== undefined ? colOverride.bubbleOffset : defaultLabelOffset;
-      const optionSpacing = colOverride.bubbleSpacing !== undefined ? colOverride.bubbleSpacing : defaultOptionSpacing;
-      
-      const optX = colX + labelOffset + (optIdx * optionSpacing) + (optionSpacing / 2);
-      const optY = rowY + (rowHeight / 2);
-      
+      // Center of each bubble: sectionLeft + labelWidth + (optIdx + 0.5) * bubbleStep
+      const optX = sectionLeft + labelWidth + (optIdx + 0.5) * bubbleStep;
       return {
         letter,
         x: optX,
-        y: optY,
-        radius: Math.min(colWidth, rowHeight) * 0.28,
+        y: rowY,
+        radius: bubbleRadius,
       };
     });
 

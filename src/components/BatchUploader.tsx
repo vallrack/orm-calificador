@@ -733,17 +733,25 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
               <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
                 <div>
                   <h4 className="font-bold text-slate-800 text-sm">🛠️ Modo Híbrido Local</h4>
-                  <p className="text-[11px] text-slate-500">Desactiva la IA en la nube y califica 100% usando una grilla local calibrable.</p>
+                  <p className="text-[11px] text-slate-500">
+                    {selectedItem.settings.useHybridMode 
+                      ? '✅ Activo — Califica 100% localmente con la grilla calibrada (sin IA).'
+                      : '🤖 Inactivo — Usa IA en la nube para extraer nombre y grado.'}
+                  </p>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={selectedItem.settings.useHybridMode}
-                    onChange={(e) => handleSettingChange('useHybridMode', e.target.checked)}
+                <button
+                  type="button"
+                  onClick={() => handleSettingChange('useHybridMode', !selectedItem.settings.useHybridMode)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 ${
+                    selectedItem.settings.useHybridMode ? 'bg-indigo-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                      selectedItem.settings.useHybridMode ? 'translate-x-5' : 'translate-x-0.5'
+                    }`}
                   />
-                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </label>
+                </button>
               </div>
 
               {/* Grid Alignment Sliders (Siempre visibles porque el escáner local es primario) */}
