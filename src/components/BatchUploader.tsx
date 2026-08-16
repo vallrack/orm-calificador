@@ -67,9 +67,12 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
     gridLeft: 6,
     gridWidth: 88,
     gridHeight: 72,
-    columnOffsets: [0, 0, 0], // Initial offset for up to 3 columns
+    questionsPerColumn: 10,
+    sectionOverrides: [],
     useHybridMode: true,
   });
+
+  const [selectedSectionIndex, setSelectedSectionIndex] = useState<number>(-1); // -1 = Todas las Secciones
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -742,70 +745,166 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
               </div>
 
               {/* Grid Alignment Sliders (Siempre visibles porque el escáner local es primario) */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mt-4">
-                  <div className="col-span-full text-xs font-bold text-indigo-800 flex items-center justify-between">
-                    <span>Alineación Manual de Grilla (Global)</span>
+              <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 mt-4">
+                  <div className="text-xs font-bold text-indigo-800 flex items-center justify-between mb-4">
+                    <span>Alineación Manual de Grilla</span>
                     <span className="font-normal text-[10px] text-indigo-600">Para calificación local 100% precisa</span>
                   </div>
-                  {/* Grid Top */}
-                  <div>
+
+                  {/* Configuración de Columnas */}
+                  <div className="mb-4 pb-4 border-b border-indigo-200">
                     <div className="flex justify-between text-[11px] font-semibold text-indigo-700 mb-1">
-                      <span>Pos. Y (Arriba)</span>
-                      <span className="font-bold">{selectedItem.settings.gridTop}%</span>
+                      <span>Preguntas por Columna</span>
+                      <span className="font-bold">{selectedItem.settings.questionsPerColumn || 10}</span>
                     </div>
-                    <input type="range" min="0" max="50" step="0.5" value={selectedItem.settings.gridTop} onChange={(e) => handleSettingChange('gridTop', parseFloat(e.target.value))} className="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+                    <input 
+                      type="range" 
+                      min="5" 
+                      max="50" 
+                      step="1" 
+                      value={selectedItem.settings.questionsPerColumn || 10} 
+                      onChange={(e) => handleSettingChange('questionsPerColumn', parseInt(e.target.value))} 
+                      className="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
+                    />
                   </div>
-                  {/* Grid Left */}
-                  <div>
-                    <div className="flex justify-between text-[11px] font-semibold text-indigo-700 mb-1">
-                      <span>Pos. X (Izq)</span>
-                      <span className="font-bold">{selectedItem.settings.gridLeft}%</span>
+
+                  {/* Selector de Sección a Editar */}
+                  <div className="mb-4">
+                    <span className="text-[11px] font-semibold text-indigo-700 block mb-2">Selecciona qué quieres ajustar:</span>
+                    <div className="flex flex-wrap gap-2">
+                      <button 
+                        onClick={() => setSelectedSectionIndex(-1)}
+                        className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${selectedSectionIndex === -1 ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50'}`}
+                      >
+                        Todas (Global)
+                      </button>
+                      {Array.from({ length: Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10)) }).map((_, i) => (
+                        <button 
+                          key={`sel-col-${i}`}
+                          onClick={() => setSelectedSectionIndex(i)}
+                          className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${selectedSectionIndex === i ? 'bg-emerald-600 text-white' : 'bg-white text-emerald-600 border border-emerald-200 hover:bg-emerald-50'}`}
+                        >
+                          Columna {i + 1}
+                        </button>
+                      ))}
                     </div>
-                    <input type="range" min="0" max="50" step="0.5" value={selectedItem.settings.gridLeft} onChange={(e) => handleSettingChange('gridLeft', parseFloat(e.target.value))} className="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+                    {selectedSectionIndex !== -1 && (
+                      <div className="mt-2 text-[10px] text-emerald-700 bg-emerald-50 p-2 rounded border border-emerald-100">
+                        Estás ajustando <b>solo la Columna {selectedSectionIndex + 1}</b>. Los cambios aquí sobrescriben la configuración Global para esta columna.
+                      </div>
+                    )}
                   </div>
-                  {/* Grid Height */}
-                  <div>
-                    <div className="flex justify-between text-[11px] font-semibold text-indigo-700 mb-1">
-                      <span>Alto (Escala Y)</span>
-                      <span className="font-bold">{selectedItem.settings.gridHeight}%</span>
-                    </div>
-                    <input type="range" min="30" max="100" step="0.5" value={selectedItem.settings.gridHeight} onChange={(e) => handleSettingChange('gridHeight', parseFloat(e.target.value))} className="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
-                  </div>
-                  {/* Grid Width */}
-                  <div>
-                    <div className="flex justify-between text-[11px] font-semibold text-indigo-700 mb-1">
-                      <span>Ancho (Escala X)</span>
-                      <span className="font-bold">{selectedItem.settings.gridWidth}%</span>
-                    </div>
-                    <input type="range" min="30" max="100" step="0.5" value={selectedItem.settings.gridWidth} onChange={(e) => handleSettingChange('gridWidth', parseFloat(e.target.value))} className="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
-                  </div>
-                  
-                  {/* Column-Specific Offsets */}
-                  <div className="col-span-full text-xs font-bold text-emerald-800 flex items-center justify-between mt-2 pt-2 border-t border-indigo-200">
-                    <span>Ajuste Fino por Columna (Compensar Rotación/Distorsión)</span>
-                  </div>
-                  {Array.from({ length: Math.ceil(template.totalQuestions / (template.totalQuestions <= 20 ? 10 : template.totalQuestions <= 40 ? 10 : 25)) }).map((_, i) => (
-                    <div key={`col-offset-${i}`}>
-                      <div className="flex justify-between text-[11px] font-semibold text-emerald-700 mb-1">
-                        <span>Despl. Y Col. {i + 1}</span>
-                        <span className="font-bold">{(selectedItem.settings.columnOffsets?.[i] || 0)}%</span>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {/* Top / Y */}
+                    <div>
+                      <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-1">
+                        <span>Pos. Y (Arriba)</span>
+                        <span className="font-bold">
+                          {selectedSectionIndex === -1 
+                            ? selectedItem.settings.gridTop 
+                            : (selectedItem.settings.sectionOverrides?.[selectedSectionIndex]?.top ?? selectedItem.settings.gridTop)}%
+                        </span>
                       </div>
                       <input 
-                        type="range" 
-                        min="-20" 
-                        max="20" 
-                        step="0.5" 
-                        value={selectedItem.settings.columnOffsets?.[i] || 0} 
+                        type="range" min="0" max="100" step="0.5" 
+                        value={selectedSectionIndex === -1 ? selectedItem.settings.gridTop : (selectedItem.settings.sectionOverrides?.[selectedSectionIndex]?.top ?? selectedItem.settings.gridTop)} 
                         onChange={(e) => {
-                          const newOffsets = [...(selectedItem.settings.columnOffsets || [0,0,0,0,0])];
-                          newOffsets[i] = parseFloat(e.target.value);
-                          handleSettingChange('columnOffsets', newOffsets);
+                          const val = parseFloat(e.target.value);
+                          if (selectedSectionIndex === -1) handleSettingChange('gridTop', val);
+                          else {
+                            const overrides = [...(selectedItem.settings.sectionOverrides || [])];
+                            if (!overrides[selectedSectionIndex]) overrides[selectedSectionIndex] = {};
+                            overrides[selectedSectionIndex].top = val;
+                            handleSettingChange('sectionOverrides', overrides);
+                          }
                         }} 
-                        className="w-full h-1.5 bg-emerald-200 rounded-lg appearance-none cursor-pointer accent-emerald-600" 
-                        title={`Sube o baja la columna ${i + 1} independientemente`}
+                        className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer ${selectedSectionIndex === -1 ? 'bg-indigo-200 accent-indigo-600' : 'bg-emerald-200 accent-emerald-600'}`} 
                       />
                     </div>
-                  ))}
+                    {/* Left / X */}
+                    <div>
+                      <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-1">
+                        <span>Pos. X (Izq)</span>
+                        <span className="font-bold">
+                          {selectedSectionIndex === -1 
+                            ? selectedItem.settings.gridLeft 
+                            : (selectedItem.settings.sectionOverrides?.[selectedSectionIndex]?.left ?? (selectedItem.settings.gridLeft + selectedSectionIndex * (selectedItem.settings.gridWidth / Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10))))).toFixed(1)}%
+                        </span>
+                      </div>
+                      <input 
+                        type="range" min="0" max="100" step="0.5" 
+                        value={selectedSectionIndex === -1 
+                          ? selectedItem.settings.gridLeft 
+                          : (selectedItem.settings.sectionOverrides?.[selectedSectionIndex]?.left ?? (selectedItem.settings.gridLeft + selectedSectionIndex * (selectedItem.settings.gridWidth / Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10)))))} 
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (selectedSectionIndex === -1) handleSettingChange('gridLeft', val);
+                          else {
+                            const overrides = [...(selectedItem.settings.sectionOverrides || [])];
+                            if (!overrides[selectedSectionIndex]) overrides[selectedSectionIndex] = {};
+                            overrides[selectedSectionIndex].left = val;
+                            handleSettingChange('sectionOverrides', overrides);
+                          }
+                        }} 
+                        className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer ${selectedSectionIndex === -1 ? 'bg-indigo-200 accent-indigo-600' : 'bg-emerald-200 accent-emerald-600'}`} 
+                      />
+                    </div>
+                    {/* Height */}
+                    <div>
+                      <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-1">
+                        <span>Alto (Escala Y)</span>
+                        <span className="font-bold">
+                          {selectedSectionIndex === -1 
+                            ? selectedItem.settings.gridHeight 
+                            : (selectedItem.settings.sectionOverrides?.[selectedSectionIndex]?.height ?? selectedItem.settings.gridHeight)}%
+                        </span>
+                      </div>
+                      <input 
+                        type="range" min="10" max="100" step="0.5" 
+                        value={selectedSectionIndex === -1 ? selectedItem.settings.gridHeight : (selectedItem.settings.sectionOverrides?.[selectedSectionIndex]?.height ?? selectedItem.settings.gridHeight)} 
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (selectedSectionIndex === -1) handleSettingChange('gridHeight', val);
+                          else {
+                            const overrides = [...(selectedItem.settings.sectionOverrides || [])];
+                            if (!overrides[selectedSectionIndex]) overrides[selectedSectionIndex] = {};
+                            overrides[selectedSectionIndex].height = val;
+                            handleSettingChange('sectionOverrides', overrides);
+                          }
+                        }} 
+                        className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer ${selectedSectionIndex === -1 ? 'bg-indigo-200 accent-indigo-600' : 'bg-emerald-200 accent-emerald-600'}`} 
+                      />
+                    </div>
+                    {/* Width */}
+                    <div>
+                      <div className="flex justify-between text-[11px] font-semibold text-slate-700 mb-1">
+                        <span>Ancho (Escala X)</span>
+                        <span className="font-bold">
+                          {selectedSectionIndex === -1 
+                            ? selectedItem.settings.gridWidth 
+                            : (selectedItem.settings.sectionOverrides?.[selectedSectionIndex]?.width ?? (selectedItem.settings.gridWidth / Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10)))).toFixed(1)}%
+                        </span>
+                      </div>
+                      <input 
+                        type="range" min="5" max="100" step="0.5" 
+                        value={selectedSectionIndex === -1 
+                          ? selectedItem.settings.gridWidth 
+                          : (selectedItem.settings.sectionOverrides?.[selectedSectionIndex]?.width ?? (selectedItem.settings.gridWidth / Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10))))} 
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (selectedSectionIndex === -1) handleSettingChange('gridWidth', val);
+                          else {
+                            const overrides = [...(selectedItem.settings.sectionOverrides || [])];
+                            if (!overrides[selectedSectionIndex]) overrides[selectedSectionIndex] = {};
+                            overrides[selectedSectionIndex].width = val;
+                            handleSettingChange('sectionOverrides', overrides);
+                          }
+                        }} 
+                        className={`w-full h-1.5 rounded-lg appearance-none cursor-pointer ${selectedSectionIndex === -1 ? 'bg-indigo-200 accent-indigo-600' : 'bg-emerald-200 accent-emerald-600'}`} 
+                      />
+                    </div>
+                  </div>
                 </div>
 
               {/* View Toggle: Processed Photo vs Binarized Black & White */}

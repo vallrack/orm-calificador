@@ -110,6 +110,12 @@ export interface PreprocessSettings {
   gridLeft: number;
   gridWidth: number;
   gridHeight: number;
-  columnOffsets?: number[]; // Independent vertical offset for each column
+  questionsPerColumn?: number; // Configurable questions per column (default 10)
+  sectionOverrides?: {
+    top?: number;
+    left?: number;
+    width?: number;
+    height?: number;
+  }[]; // Independent X, Y, W, H per column
   useHybridMode: boolean;
 }

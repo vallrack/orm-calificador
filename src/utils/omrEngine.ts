@@ -204,28 +204,46 @@ export function computeSheetOverlayCoordinates(
   gridHeight: number = 72, // % of total height
   gridLeft: number = 6, // % from left
   gridWidth: number = 88, // % width available
-  columnOffsets: number[] = [] // Y offset per column
+  settings?: PreprocessSettings
 ): BubbleCoordinates[] {
   const letters: OptionLetter[] = ['a', 'b', 'c', 'd', 'e', 'f'].slice(0, optionsPerQuestion) as OptionLetter[];
   
-  // Standard format for answer sheets (e.g. ITM format):
-  // 3 columns for 30 questions (10 questions per column)
-  // or 4 columns for 40 questions, etc.
-  const questionsPerColumn = totalQuestions <= 20 ? 10 : totalQuestions <= 40 ? 10 : 25;
+  // Use configurable questions per column or fallback to standard logic
+  const questionsPerColumn = settings?.questionsPerColumn 
+    ? settings.questionsPerColumn 
+    : (totalQuestions <= 20 ? 10 : totalQuestions <= 40 ? 10 : 25);
   const numColumns = Math.ceil(totalQuestions / questionsPerColumn);
   
   const coordinates: BubbleCoordinates[] = [];
-  
-  const colWidth = gridWidth / numColumns;
-  const rowHeight = gridHeight / questionsPerColumn;
 
   for (let q = 1; q <= totalQuestions; q++) {
     const colIndex = Math.floor((q - 1) / questionsPerColumn);
     const rowIndex = (q - 1) % questionsPerColumn;
 
-    const colX = gridLeft + colIndex * colWidth;
-    const colOffsetY = columnOffsets[colIndex] || 0;
-    const rowY = gridTop + rowIndex * rowHeight + colOffsetY;
+    // Base settings vs overrides for this specific column
+    const colOverride = settings?.sectionOverrides?.[colIndex] || {};
+    
+    // Width and height of the grid section for THIS column
+    // The width available for *one* column is (gridWidth / numColumns) base
+    // But if they override width, we use the override as the column's *own* width
+    const baseColWidth = gridWidth / numColumns;
+    const activeWidth = colOverride.width !== undefined ? colOverride.width : baseColWidth;
+    
+    const baseRowHeight = gridHeight / questionsPerColumn;
+    const activeHeight = colOverride.height !== undefined ? colOverride.height / questionsPerColumn : baseRowHeight;
+
+    // Start X and Y for this column
+    const baseColX = gridLeft + colIndex * baseColWidth;
+    const activeColX = colOverride.left !== undefined ? colOverride.left : baseColX;
+    
+    const baseTop = gridTop;
+    const activeTop = colOverride.top !== undefined ? colOverride.top : baseTop;
+
+    const colX = activeColX;
+    const rowY = activeTop + rowIndex * activeHeight;
+    
+    const colWidth = activeWidth;
+    const rowHeight = activeHeight;
 
     const bubbleOpts = letters.map((letter, optIdx) => {
       // Offset after question number label (~25% of column for label, remaining 75% for bubbles a,b,c,d)
@@ -285,7 +303,7 @@ export function scanBubblesLocally(
   }
 
   const overlayCoords = computeSheetOverlayCoordinates(
-    totalQuestions, optionsPerQuestion, gridTop, gridHeight, gridLeft, gridWidth, settings?.columnOffsets ?? []
+    totalQuestions, optionsPerQuestion, gridTop, gridHeight, gridLeft, gridWidth, settings
   );
   const results: Record<number, OptionLetter | 'MULTIPLE' | 'BLANK'> = {};
 
