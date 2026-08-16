@@ -300,8 +300,8 @@ export function scanBubblesLocally(
       const pixelY = Math.round((opt.y / 100) * height);
 
       // Radius in pixels: use width-based % since coordinates are in % of image width
-      // Use a slightly smaller radius to avoid sampling neighboring bubbles
-      const radiusPx = Math.max(3, Math.round((opt.radius / 100) * width * 0.85));
+      // Use a smaller radius (0.6) to ensure we ONLY sample the inside of the bubble and avoid the thick printed outlines
+      const radiusPx = Math.max(3, Math.round((opt.radius / 100) * width * 0.6));
 
       const startX = Math.max(0, pixelX - radiusPx);
       const startY = Math.max(0, pixelY - radiusPx);
@@ -331,8 +331,12 @@ export function scanBubblesLocally(
         }
       }
 
-      const darknessRatio = totalSampled > 0 ? darkPixels / totalSampled : 0;
-      densities.push({ letter: opt.letter, darkness: darknessRatio });
+      if (totalSampled > 0) {
+        densities.push({
+          letter: opt.letter,
+          darkness: darkPixels / totalSampled, // 0.0 to 1.0
+        });
+      }
     }
 
     if (densities.length === 0) {
@@ -352,8 +356,8 @@ export function scanBubblesLocally(
     // A bubble is "clearly marked" if it is at least RELATIVE_FACTOR times darker
     // than the average of all the OTHER bubbles in the same row.
     // This handles: light pencil, scanner noise, empty bubble outlines.
-    const RELATIVE_FACTOR = 2.2;   // winner must be 2.2x darker than average of others
-    const ABS_MIN = 0.12;          // winner must still be at least 12% dark (eliminates all-blank rows)
+    const RELATIVE_FACTOR = 1.5;   // winner must be 1.5x darker than average of others
+    const ABS_MIN = 0.08;          // winner must still be at least 8% dark (eliminates all-blank rows)
     const DOUBLE_GAP = 0.06;       // if top-2 are within 6% of each other → MULTIPLE
 
     const isWinnerDark = highest.darkness >= ABS_MIN;

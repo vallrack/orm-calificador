@@ -1105,30 +1105,26 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
                             <div key={item.questionNumber}>
                               {item.options.map((opt) => {
                                 // Compute pixel positions from % coords using actual rendered image size
-                                // opt.x is % of image width, opt.y is % of image height
-                                // opt.radius is % of image width
                                 const iw = imgDimensions.w || 600;
                                 const ih = imgDimensions.h || 300;
                                 const px_cx = (opt.x / 100) * iw;
                                 const px_cy = (opt.y / 100) * ih;
-                                // Radius in pixels: based on width so it stays a perfect circle
-                                const px_r = Math.max(4, (opt.radius / 100) * iw * 1.4);
-                                // Cap radius by row height so circles don't overflow rows
-                                const rowH = ih * (selectedItem.settings.gridHeight || 72) / 100 / (selectedItem.settings.questionsPerColumn || 10);
-                                const finalR = Math.min(px_r, rowH * 0.48);
+                                // Radius in pixels: exact same formula as scanBubblesLocally
+                                const px_r = Math.max(3, Math.round((opt.radius / 100) * iw * 0.85));
 
                                 return (
                                   <div
                                     key={opt.letter}
-                                    className={`absolute rounded-full border-2 ${borderColor} ${bgColor} shadow-xs`}
+                                    className={`absolute rounded-full ${isSelectedCol ? 'bg-emerald-500/60' : 'bg-emerald-500/20'}`}
                                     style={{
                                       left: `${px_cx}px`,
                                       top: `${px_cy}px`,
-                                      width: `${finalR * 2}px`,
-                                      height: `${finalR * 2}px`,
+                                      width: `${px_r * 2}px`,
+                                      height: `${px_r * 2}px`,
                                       transform: 'translate(-50%, -50%)',
                                       pointerEvents: isSelectedCol ? 'auto' : 'none',
                                       cursor: isSelectedCol ? 'grab' : 'default',
+                                      boxShadow: isSelectedCol ? '0 0 0 1px rgba(16, 185, 129, 0.8)' : 'none'
                                     }}
                                     onMouseDown={(e) => {
                                       e.preventDefault();
