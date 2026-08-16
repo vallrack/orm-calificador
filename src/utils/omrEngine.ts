@@ -352,33 +352,34 @@ export function scanBubblesLocally(
     // Sort by darkness descending
     densities.sort((a, b) => b.darkness - a.darkness);
     const highest = densities[0];
+    const others = densities.slice(1);
+    const avgOthers = others.length > 0
+      ? others.reduce((sum, d) => sum + d.darkness, 0) / others.length
+      : 0;
+
+    // --- Pure Relative Decision ---
+    // A bubble is "clearly marked" if it is at least RELATIVE_FACTOR times darker
+    // than the average of all the OTHER bubbles in the same row.
+    // This handles: light pencil, scanner noise, empty bubble outlines.
+    const RELATIVE_FACTOR = 2.2;   // winner must be 2.2x darker than average of others
+    const ABS_MIN = 0.12;          // winner must still be at least 12% dark (eliminates all-blank rows)
+    const DOUBLE_GAP = 0.06;       // if top-2 are within 6% of each other → MULTIPLE
+
+    const isWinnerDark = highest.darkness >= ABS_MIN;
+    const isClearWinner = isWinnerDark && (avgOthers === 0 || highest.darkness >= avgOthers * RELATIVE_FACTOR);
     const secondHighest = densities[1];
-    const rest = densities.slice(2);
+    const isDoubleMarked = isClearWinner && secondHighest && secondHighest.darkness >= ABS_MIN
+      && (highest.darkness - secondHighest.darkness) < DOUBLE_GAP;
 
-    // Adaptive thresholds:
-    // MIN_ABSOLUTE: bubble must have at least 8% dark pixels to not be "blank"
-    // RELATIVE_MARGIN: the winner must be at least 1.5x darker than runner-up
-    const MIN_ABSOLUTE = 0.08;
-    const RELATIVE_FACTOR = 1.45; // winner must be 45% darker than 2nd place
-    const DOUBLE_MARK_MARGIN = 0.10; // both must be within 10% of each other
-
-    if (highest.darkness < MIN_ABSOLUTE) {
-      // Nothing dark enough — blank
+    if (!isWinnerDark) {
       results[item.questionNumber] = 'BLANK';
-    } else if (
-      secondHighest &&
-      secondHighest.darkness >= MIN_ABSOLUTE &&
-      (highest.darkness - secondHighest.darkness) < DOUBLE_MARK_MARGIN
-    ) {
-      // Two bubbles very close in darkness — double mark
+    } else if (isDoubleMarked) {
       results[item.questionNumber] = 'MULTIPLE';
-    } else if (secondHighest && highest.darkness < secondHighest.darkness * RELATIVE_FACTOR) {
-      // Winner isn't clearly darker than runner-up — likely noise, call it BLANK or MULTIPLE
-      // If both above threshold → MULTIPLE, else BLANK
-      results[item.questionNumber] = secondHighest.darkness >= MIN_ABSOLUTE ? 'MULTIPLE' : 'BLANK';
-    } else {
-      // Clear winner
+    } else if (isClearWinner) {
       results[item.questionNumber] = highest.letter;
+    } else {
+      // Winner exists but not clearly darker than neighbors → likely empty bubble outlines
+      results[item.questionNumber] = 'BLANK';
     }
   }
 
