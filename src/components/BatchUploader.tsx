@@ -1083,77 +1083,80 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
                     }}
                   />
                   {/* Grid Overlay — drag enabled per column */}
-                  <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
-                    {(() => {
-                      const numCols = Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10));
-                      const allCoords = computeSheetOverlayCoordinates(
-                        template.totalQuestions,
-                        template.optionsPerQuestion,
-                        selectedItem.settings.gridTop,
-                        selectedItem.settings.gridHeight,
-                        selectedItem.settings.gridLeft,
-                        selectedItem.settings.gridWidth,
-                        selectedItem.settings
-                      );
-                      return allCoords.map((item) => {
-                        const colIdx = Math.floor((item.questionNumber - 1) / (selectedItem.settings.questionsPerColumn || 10));
-                        const isSelectedCol = selectedSectionIndex === -1 || colIdx === selectedSectionIndex;
-                        const borderColor = isSelectedCol ? 'border-emerald-400' : 'border-emerald-600/40';
-                        const bgColor = isSelectedCol ? 'bg-emerald-400/30' : 'bg-emerald-600/10';
-                        return (
-                          <div key={item.questionNumber}>
-                            {item.options.map((opt) => {
-                              // Compute pixel positions from % coords using actual rendered image size
-                              // opt.x is % of image width, opt.y is % of image height
-                              // opt.radius is % of image width
-                              const iw = imgDimensions.w || 600;
-                              const ih = imgDimensions.h || 300;
-                              const px_cx = (opt.x / 100) * iw;
-                              const px_cy = (opt.y / 100) * ih;
-                              // Radius in pixels: based on width so it stays a perfect circle
-                              const px_r = Math.max(4, (opt.radius / 100) * iw * 1.4);
-                              // Cap radius by row height so circles don't overflow rows
-                              const rowH = ih * (selectedItem.settings.gridHeight || 72) / 100 / (selectedItem.settings.questionsPerColumn || 10);
-                              const finalR = Math.min(px_r, rowH * 0.48);
-
-                              return (
-                                <div
-                                  key={opt.letter}
-                                  className={`absolute rounded-full border-2 ${borderColor} ${bgColor} shadow-xs`}
-                                  style={{
-                                    left: `${px_cx}px`,
-                                    top: `${px_cy}px`,
-                                    width: `${finalR * 2}px`,
-                                    height: `${finalR * 2}px`,
-                                    transform: 'translate(-50%, -50%)',
-                                    pointerEvents: isSelectedCol ? 'auto' : 'none',
-                                    cursor: isSelectedCol ? 'grab' : 'default',
-                                  }}
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    const overrides = selectedItem.settings.sectionOverrides || [];
-                                    const origLeft = selectedSectionIndex === -1
-                                      ? selectedItem.settings.gridLeft
-                                      : (overrides[selectedSectionIndex]?.left ?? (selectedItem.settings.gridLeft + selectedSectionIndex * (selectedItem.settings.gridWidth / numCols)));
-                                    const origTop = selectedSectionIndex === -1
-                                      ? selectedItem.settings.gridTop
-                                      : (overrides[selectedSectionIndex]?.top ?? selectedItem.settings.gridTop);
-                                    dragState.current = {
-                                      colIndex: selectedSectionIndex,
-                                      startX: e.clientX,
-                                      startY: e.clientY,
-                                      origLeft,
-                                      origTop,
-                                    };
-                                  }}
-                                />
-                              );
-                            })}
-                          </div>
+                  {selectedItem.settings.useHybridMode && (
+                    <div className="absolute inset-0" style={{ pointerEvents: 'none' }}>
+                      {(() => {
+                        const numCols = Math.ceil(template.totalQuestions / (selectedItem.settings.questionsPerColumn || 10));
+                        const allCoords = computeSheetOverlayCoordinates(
+                          template.totalQuestions,
+                          template.optionsPerQuestion,
+                          selectedItem.settings.gridTop,
+                          selectedItem.settings.gridHeight,
+                          selectedItem.settings.gridLeft,
+                          selectedItem.settings.gridWidth,
+                          selectedItem.settings
                         );
-                      });
-                    })()}
-                  </div>
+                        return allCoords.map((item) => {
+                          const colIdx = Math.floor((item.questionNumber - 1) / (selectedItem.settings.questionsPerColumn || 10));
+                          const isSelectedCol = selectedSectionIndex === -1 || colIdx === selectedSectionIndex;
+                          const borderColor = isSelectedCol ? 'border-emerald-400' : 'border-emerald-600/40';
+                          const bgColor = isSelectedCol ? 'bg-emerald-400/30' : 'bg-emerald-600/10';
+                          return (
+                            <div key={item.questionNumber}>
+                              {item.options.map((opt) => {
+                                // Compute pixel positions from % coords using actual rendered image size
+                                // opt.x is % of image width, opt.y is % of image height
+                                // opt.radius is % of image width
+                                const iw = imgDimensions.w || 600;
+                                const ih = imgDimensions.h || 300;
+                                const px_cx = (opt.x / 100) * iw;
+                                const px_cy = (opt.y / 100) * ih;
+                                // Radius in pixels: based on width so it stays a perfect circle
+                                const px_r = Math.max(4, (opt.radius / 100) * iw * 1.4);
+                                // Cap radius by row height so circles don't overflow rows
+                                const rowH = ih * (selectedItem.settings.gridHeight || 72) / 100 / (selectedItem.settings.questionsPerColumn || 10);
+                                const finalR = Math.min(px_r, rowH * 0.48);
+
+                                return (
+                                  <div
+                                    key={opt.letter}
+                                    className={`absolute rounded-full border-2 ${borderColor} ${bgColor} shadow-xs`}
+                                    style={{
+                                      left: `${px_cx}px`,
+                                      top: `${px_cy}px`,
+                                      width: `${finalR * 2}px`,
+                                      height: `${finalR * 2}px`,
+                                      transform: 'translate(-50%, -50%)',
+                                      pointerEvents: isSelectedCol ? 'auto' : 'none',
+                                      cursor: isSelectedCol ? 'grab' : 'default',
+                                    }}
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      const overrides = selectedItem.settings.sectionOverrides || [];
+                                      const origLeft = selectedSectionIndex === -1
+                                        ? selectedItem.settings.gridLeft
+                                        : (overrides[selectedSectionIndex]?.left ?? (selectedItem.settings.gridLeft + selectedSectionIndex * (selectedItem.settings.gridWidth / numCols)));
+                                      const origTop = selectedSectionIndex === -1
+                                        ? selectedItem.settings.gridTop
+                                        : (overrides[selectedSectionIndex]?.top ?? selectedItem.settings.gridTop);
+                                      dragState.current = {
+                                        colIndex: selectedSectionIndex,
+                                        startX: e.clientX,
+                                        startY: e.clientY,
+                                        origLeft,
+                                        origTop,
+                                      };
+                                    }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  )}
+
                 </div>
               </div>
 
