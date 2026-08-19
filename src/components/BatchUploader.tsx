@@ -50,6 +50,7 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
   const [selectedQueueId, setSelectedQueueId] = useState<string | null>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [applyToAll, setApplyToAll] = useState(false);
 
   // Preprocessing state for active preview
   const [globalSettings, setGlobalSettings] = useState<PreprocessSettings>({
@@ -67,8 +68,6 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
     gridLeft: 6,
     gridWidth: 88,
     gridHeight: 72,
-    labelFraction: 0.22,
-    bubbleCenterOffset: 0.5,
     questionsPerColumn: 10,
     sectionOverrides: [],
     useHybridMode: true,
@@ -151,21 +150,12 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
     updateItemPreview(updated);
   };
 
-  const [applyToAll, setApplyToAll] = useState(true);
-
   const handleSettingChange = (field: keyof PreprocessSettings, value: any) => {
     if (!selectedItem) return;
-    
+    const updatedSettings = { ...selectedItem.settings, [field]: value };
+    const updated = { ...selectedItem, settings: updatedSettings };
+    setQueue((prev) => prev.map((q) => (q.id === selectedItem.id ? updated : q)));
     setGlobalSettings((prev) => ({ ...prev, [field]: value }));
-    
-    setQueue((prev) => prev.map((q) => {
-      if (applyToAll || q.id === selectedItem.id) {
-        return { ...q, settings: { ...q.settings, [field]: value } };
-      }
-      return q;
-    }));
-    
-    const updated = { ...selectedItem, settings: { ...selectedItem.settings, [field]: value } };
     updateItemPreview(updated);
   };
 
@@ -274,7 +264,7 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
         // Build expected keys map from template for AI reference
         const expectedKeys: Record<number, string> = {};
         Object.entries(template.keys).forEach(([q, letter]) => {
-          expectedKeys[Number(q)] = letter;
+          expectedKeys[Number(q)] = letter as string;
         });
 
         const aiResult = await analyzeExamWithAI(
@@ -647,18 +637,9 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
               </p>
             </div>
 
-            {/* Rotation Buttons & Sync Checkbox */}
+            {/* Rotation Buttons */}
             {selectedItem && (
-              <div className="flex items-center space-x-4">
-                <label className="flex items-center space-x-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={applyToAll}
-                    onChange={(e) => setApplyToAll(e.target.checked)}
-                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
-                  />
-                  <span>Aplicar a todas las fotos</span>
-                </label>
+              <div className="flex items-center space-x-1.5">
                 <button
                   type="button"
                   onClick={() => handleRotate(90)}
@@ -792,43 +773,6 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
                     value={selectedItem.settings.cropRight}
                     onChange={(e) => handleSettingChange('cropRight', parseInt(e.target.value))}
                     className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                  />
-              </div>
-
-              {/* Advanced Grid Sliders */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                {/* Label Fraction Slider */}
-                <div>
-                  <div className="flex justify-between text-xs font-semibold text-slate-600 mb-1">
-                    <span>Espacio Número Pregunta</span>
-                    <span className="text-indigo-600 font-bold">{Math.round((selectedItem.settings.labelFraction ?? 0.22) * 100)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.0"
-                    max="0.4"
-                    step="0.01"
-                    value={selectedItem.settings.labelFraction ?? 0.22}
-                    onChange={(e) => handleSettingChange('labelFraction', parseFloat(e.target.value))}
-                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                    title="Ajusta el espacio reservado para la columna del número (ej. '1')"
-                  />
-                </div>
-                {/* Bubble Center Offset Slider */}
-                <div>
-                  <div className="flex justify-between text-xs font-semibold text-slate-600 mb-1">
-                    <span>Alineación de Burbujas X</span>
-                    <span className="text-indigo-600 font-bold">{Math.round((selectedItem.settings.bubbleCenterOffset ?? 0.5) * 100)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.2"
-                    max="0.9"
-                    step="0.01"
-                    value={selectedItem.settings.bubbleCenterOffset ?? 0.5}
-                    onChange={(e) => handleSettingChange('bubbleCenterOffset', parseFloat(e.target.value))}
-                    className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                    title="Mueve las burbujas hacia la izquierda o derecha dentro de su espacio"
                   />
                 </div>
               </div>
