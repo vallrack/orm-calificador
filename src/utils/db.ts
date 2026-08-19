@@ -79,6 +79,18 @@ export const deleteResult = async (userId: string, resultId: string) => {
   }
 };
 
+export const deleteResultsBatch = async (userId: string, resultIds: string[]) => {
+  try {
+    const batch = writeBatch(db);
+    resultIds.forEach(id => {
+      batch.delete(doc(db, "users", userId, "results", id));
+    });
+    await batch.commit();
+  } catch (error) {
+    console.error("Error deleting bulk results from Firestore:", error);
+  }
+};
+
 export const deleteUserData = async (userId: string, results: StudentExamResult[], templates: MasterTemplate[]) => {
   try {
     const batch = writeBatch(db);

@@ -161,6 +161,15 @@ export default function App() {
     }
   };
 
+  const handleDeleteBulkResults = (ids: string[]) => {
+    setResults((prev) => prev.filter((r) => !ids.includes(r.id)));
+    if (user) {
+      import('./utils/db').then(({ deleteResultsBatch }) => {
+        deleteResultsBatch(user.uid, ids);
+      });
+    }
+  };
+
   const handleUpdateSingleResult = (updated: StudentExamResult) => {
     setResults((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
     setInspectingResult(updated);
@@ -255,6 +264,7 @@ export default function App() {
             onOpenVisualModal={(res) => setInspectingResult(res)}
             onNavigateToReports={() => setActiveTab('reports')}
             onDeleteResult={handleDeleteResult}
+            onDeleteBulkResults={handleDeleteBulkResults}
           />
         )}
 
