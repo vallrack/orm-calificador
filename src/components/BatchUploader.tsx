@@ -151,12 +151,21 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
     updateItemPreview(updated);
   };
 
+  const [applyToAll, setApplyToAll] = useState(true);
+
   const handleSettingChange = (field: keyof PreprocessSettings, value: any) => {
     if (!selectedItem) return;
-    const updatedSettings = { ...selectedItem.settings, [field]: value };
-    const updated = { ...selectedItem, settings: updatedSettings };
-    setQueue((prev) => prev.map((q) => (q.id === selectedItem.id ? updated : q)));
+    
     setGlobalSettings((prev) => ({ ...prev, [field]: value }));
+    
+    setQueue((prev) => prev.map((q) => {
+      if (applyToAll || q.id === selectedItem.id) {
+        return { ...q, settings: { ...q.settings, [field]: value } };
+      }
+      return q;
+    }));
+    
+    const updated = { ...selectedItem, settings: { ...selectedItem.settings, [field]: value } };
     updateItemPreview(updated);
   };
 
@@ -638,9 +647,18 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
               </p>
             </div>
 
-            {/* Rotation Buttons */}
+            {/* Rotation Buttons & Sync Checkbox */}
             {selectedItem && (
-              <div className="flex items-center space-x-1.5">
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center space-x-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={applyToAll}
+                    onChange={(e) => setApplyToAll(e.target.checked)}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                  />
+                  <span>Aplicar a todas las fotos</span>
+                </label>
                 <button
                   type="button"
                   onClick={() => handleRotate(90)}
