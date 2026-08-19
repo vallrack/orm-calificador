@@ -215,7 +215,8 @@ export function computeSheetOverlayCoordinates(
   //   - A narrow question-number label column (~20% of section width)
   //   - The remaining 80% divided equally among the bubbles (a, b, c, d)
   // labelFraction: what fraction of a section is taken by the Q# label
-  const LABEL_FRACTION = 0.22; // 22% of section for the number, 78% for bubbles
+  const LABEL_FRACTION = settings?.labelFraction ?? 0.22; 
+  const BUBBLE_CENTER_OFFSET = settings?.bubbleCenterOffset ?? 0.5;
 
   const coordinates: BubbleCoordinates[] = [];
 
@@ -245,8 +246,8 @@ export function computeSheetOverlayCoordinates(
     const bubbleRadius = Math.min(sectionWidth / optionsPerQuestion, rowHeight) * 0.28;
 
     const bubbleOpts = letters.map((letter, optIdx) => {
-      // Center of each bubble: sectionLeft + labelWidth + (optIdx + 0.5) * bubbleStep
-      const optX = sectionLeft + labelWidth + (optIdx + 0.5) * bubbleStep;
+      // Center of each bubble: sectionLeft + labelWidth + (optIdx + BUBBLE_CENTER_OFFSET) * bubbleStep
+      const optX = sectionLeft + labelWidth + (optIdx + BUBBLE_CENTER_OFFSET) * bubbleStep;
       return {
         letter,
         x: optX,

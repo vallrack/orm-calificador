@@ -112,6 +112,8 @@ export interface PreprocessSettings {
   gridLeft: number;
   gridWidth: number;
   gridHeight: number;
+  labelFraction?: number; // Configurable fraction of column width for question number (default 0.22)
+  bubbleCenterOffset?: number; // Configurable center of bubble (default 0.5)
   questionsPerColumn?: number; // Configurable questions per column (default 10)
   sectionOverrides?: {
     top?: number;
