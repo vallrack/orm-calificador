@@ -36,6 +36,7 @@ export const ExamGrader: React.FC<ExamGraderProps> = ({
   onOpenVisualModal,
   onNavigateToReports,
   onDeleteResult,
+  onDeleteBulkResults,
 }) => {
   const [filterTab, setFilterTab] = useState<'ALL' | 'NEEDS_REVIEW' | 'PASSED' | 'FAILED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
