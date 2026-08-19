@@ -15,6 +15,12 @@ export interface AIVisionResult {
   confidence: number;
   anomalies: string[];
   modelUsed: string;
+  gridBoundingBox?: {
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  };
 }
 
 function buildOMRPrompt(totalQuestions: number, optionsPerQuestion: number, expectedKeys?: Record<number, string>): string {
@@ -66,9 +72,16 @@ ${keySection}
 - Read carefully from the handwritten header field — may be in cursive
 - Do NOT include "Nombre:" or "Grado:" labels in your output
 
+== GRID BOUNDING BOX (CRITICAL FOR ALIGNMENT) ==
+- Calculate the percentage bounding box of the MAIN ANSWER GRID (where all the bubbles are located, excluding the top header).
+- "top": percentage from top edge (0-100) where the first question starts.
+- "left": percentage from left edge (0-100) where the first question number starts.
+- "width": percentage width (0-100) covering all answer columns.
+- "height": percentage height (0-100) covering from question 1 to the last question.
+
 == OUTPUT FORMAT ==
 Return ONLY valid JSON (no markdown, no code fences):
-{"studentName":"<full name>","grade":"<grade code>","answers":[{"questionNumber":1,"selectedOption":"<letter|BLANK|MULTIPLE>","isDoubleMark":false,"isBlank":false}],"confidence":0.9,"anomalies":[]}
+{"studentName":"<full name>","grade":"<grade code>","answers":[{"questionNumber":1,"selectedOption":"<letter|BLANK|MULTIPLE>","isDoubleMark":false,"isBlank":false}],"confidence":0.9,"anomalies":[],"gridBoundingBox":{"top":22,"left":6,"width":88,"height":72}}
 The answers array MUST have exactly ${totalQuestions} entries in order.`;
 }
 

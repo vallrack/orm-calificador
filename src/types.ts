@@ -68,6 +68,8 @@ export interface StudentExamResult {
   gridHeight?: number;
   
   analyzedWithAI: boolean;
+  autoAligned?: boolean;
+  aiGridBoundingBox?: { top: number; left: number; width: number; height: number };
   timestamp: string;
 }
 

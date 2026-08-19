@@ -227,9 +227,13 @@ export default function App() {
             onChangeActiveTemplate={setActiveTemplateId}
             onCreateTemplate={handleCreateTemplate}
             onDeleteTemplate={handleDeleteTemplate}
-            setTemplate={(t) => {
-               // Update current template in array, but wait for save to persist to Firebase
-               setTemplates(prev => prev.map(tmpl => tmpl.id === t.id ? t : tmpl));
+            setTemplate={(action) => {
+               setTemplates(prev => {
+                 const currentTemplate = prev.find(tmpl => tmpl.id === activeTemplateId) || prev[0];
+                 if (!currentTemplate) return prev;
+                 const updatedTemplate = typeof action === 'function' ? action(currentTemplate) : action;
+                 return prev.map(tmpl => tmpl.id === updatedTemplate.id ? updatedTemplate : tmpl);
+               });
             }}
             onSave={() => handleSaveTemplate(template)}
           />

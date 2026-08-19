@@ -31,7 +31,7 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
  * Rotate and adjust contrast/brightness on an image canvas
  */
 export async function preprocessImage(
-  imageSource: string | HTMLImageElement,
+  imageSource: string | HTMLImageElement | HTMLCanvasElement,
   settings: PreprocessSettings,
   rotationDegrees: number = 0
 ): Promise<ProcessedImageData> {
@@ -379,4 +379,128 @@ export function scanBubblesLocally(
 
   return results;
 }
+
+declare const cv: any;
+
+/**
+ * Attempt to automatically detect document boundaries and perspective warp it.
+ * Uses OpenCV.js if available globally.
+ */
+export async function autoAlignDocument(imageSource: string | HTMLImageElement): Promise<{ alignedCanvas: HTMLCanvasElement | null, success: boolean }> {
+  if (typeof cv === 'undefined') {
+    console.warn("OpenCV.js is not loaded. Skipping auto-alignment.");
+    return { alignedCanvas: null, success: false };
+  }
+
+  try {
+    const img = typeof imageSource === 'string' ? await loadImage(imageSource) : imageSource;
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return { alignedCanvas: null, success: false };
+    ctx.drawImage(img, 0, 0);
+
+    const src = cv.imread(canvas);
+    const gray = new cv.Mat();
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+    
+    // Blur to reduce noise
+    const blurred = new cv.Mat();
+    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
+    
+    // Edge detection
+    const edges = new cv.Mat();
+    cv.Canny(blurred, edges, 75, 200);
+
+    // Find contours
+    const contours = new cv.MatVector();
+    const hierarchy = new cv.Mat();
+    cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+    // Find the largest quadrilateral (4 sides)
+    let maxArea = 0;
+    let bestApprox = new cv.Mat();
+    let foundDoc = false;
+
+    // We assume the document takes up at least 20% of the image
+    const minArea = (img.width * img.height) * 0.2;
+
+    for (let i = 0; i < contours.size(); ++i) {
+      const cnt = contours.get(i);
+      const area = cv.contourArea(cnt);
+      if (area > minArea) {
+        const peri = cv.arcLength(cnt, true);
+        const approx = new cv.Mat();
+        cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+        
+        if (approx.rows === 4 && area > maxArea) {
+          maxArea = area;
+          approx.copyTo(bestApprox);
+          foundDoc = true;
+        }
+        approx.delete();
+      }
+    }
+
+    if (!foundDoc) {
+      src.delete(); gray.delete(); blurred.delete(); edges.delete();
+      contours.delete(); hierarchy.delete(); bestApprox.delete();
+      return { alignedCanvas: null, success: false };
+    }
+
+    // Sort the 4 points (top-left, top-right, bottom-right, bottom-left)
+    const points = [];
+    for (let i = 0; i < 4; i++) {
+      points.push({ x: bestApprox.data32S[i * 2], y: bestApprox.data32S[i * 2 + 1] });
+    }
+    
+    // Top-left has smallest sum, Bottom-right has largest sum
+    const sortedBySum = [...points].sort((a, b) => (a.x + a.y) - (b.x + b.y));
+    const tl = sortedBySum[0];
+    const br = sortedBySum[3];
+    
+    // Top-right has smallest diff (y-x), Bottom-left has largest diff
+    const remaining = [sortedBySum[1], sortedBySum[2]].sort((a, b) => (a.y - a.x) - (b.y - b.x));
+    const tr = remaining[0];
+    const bl = remaining[1];
+
+    // Compute dimensions of the new image
+    const widthA = Math.sqrt(Math.pow(br.x - bl.x, 2) + Math.pow(br.y - bl.y, 2));
+    const widthB = Math.sqrt(Math.pow(tr.x - tl.x, 2) + Math.pow(tr.y - tl.y, 2));
+    const maxWidth = Math.max(Math.round(widthA), Math.round(widthB));
+
+    const heightA = Math.sqrt(Math.pow(tr.x - br.x, 2) + Math.pow(tr.y - br.y, 2));
+    const heightB = Math.sqrt(Math.pow(tl.x - bl.x, 2) + Math.pow(tl.y - bl.y, 2));
+    const maxHeight = Math.max(Math.round(heightA), Math.round(heightB));
+
+    const srcCoords = cv.matFromArray(4, 1, cv.CV_32FC2, [
+      tl.x, tl.y, tr.x, tr.y, br.x, br.y, bl.x, bl.y
+    ]);
+    const dstCoords = cv.matFromArray(4, 1, cv.CV_32FC2, [
+      0, 0, maxWidth - 1, 0, maxWidth - 1, maxHeight - 1, 0, maxHeight - 1
+    ]);
+
+    const M = cv.getPerspectiveTransform(srcCoords, dstCoords);
+    const warped = new cv.Mat();
+    const dsize = new cv.Size(maxWidth, maxHeight);
+    cv.warpPerspective(src, warped, M, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar());
+
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = maxWidth;
+    outCanvas.height = maxHeight;
+    cv.imshow(outCanvas, warped);
+
+    // Cleanup
+    src.delete(); gray.delete(); blurred.delete(); edges.delete();
+    contours.delete(); hierarchy.delete(); bestApprox.delete();
+    srcCoords.delete(); dstCoords.delete(); M.delete(); warped.delete();
+
+    return { alignedCanvas: outCanvas, success: true };
+  } catch (err) {
+    console.warn("OpenCV auto-alignment failed:", err);
+    return { alignedCanvas: null, success: false };
+  }
+}
+
 

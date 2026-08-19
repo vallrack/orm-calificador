@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { MasterTemplate, PreprocessSettings, StudentExamResult } from '../types';
 import { parseUploadedFile, ParsedFilePage } from '../utils/fileParser';
-import { preprocessImage, scanBubblesLocally, computeSheetOverlayCoordinates } from '../utils/omrEngine';
+import { preprocessImage, scanBubblesLocally, computeSheetOverlayCoordinates, autoAlignDocument } from '../utils/omrEngine';
 import { gradeStudentExam } from '../utils/scoring';
 import { analyzeExamWithAI } from '../utils/aiVision';
 
@@ -227,14 +227,21 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
 
   // Process a single item with Gemini OCR/HTR and OMR evaluation
   const processSingleItem = async (item: QueuedItem): Promise<StudentExamResult> => {
-    // 1. Preprocess image with custom rotation & binarization
-    const processed = await preprocessImage(item.page.dataUrl, item.settings, item.rotation);
+    // 1. Auto-Align Document with OpenCV (Layer 1 & 2)
+    const alignResult = await autoAlignDocument(item.page.dataUrl);
+
+    // 2. Preprocess image with custom rotation & binarization
+    // If auto-alignment succeeded, we use the perfectly aligned canvas. Otherwise, we fallback to the raw image.
+    const imageSource = alignResult.success && alignResult.alignedCanvas ? alignResult.alignedCanvas : item.page.dataUrl;
+    const processed = await preprocessImage(imageSource, item.settings, item.rotation);
 
     let studentName = '';
     let grade = '';
     let detectedAnswers: Record<number, any> = {};
     let analyzedWithAI = false;
     let serverAnomalies: string[] = [];
+    let aiGridBoundingBox = undefined;
+    let autoAligned = alignResult.success;
 
     // If Hybrid Mode is enabled, skip the AI entirely and only use the local scanner
     if (!item.settings.useHybridMode) {
@@ -271,10 +278,29 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
           studentName = aiResult.studentName?.trim() || '';
           grade = aiResult.grade?.trim() || '';
           analyzedWithAI = true;
+
+          // Layer 3: AI Grid Bounding Box Fallback
+          // If OpenCV alignment failed, we use AI's grid coordinates if available
+          if (!autoAligned && aiResult.gridBoundingBox) {
+            aiGridBoundingBox = aiResult.gridBoundingBox;
+            item.settings.gridTop = aiResult.gridBoundingBox.top;
+            item.settings.gridLeft = aiResult.gridBoundingBox.left;
+            item.settings.gridWidth = aiResult.gridBoundingBox.width;
+            item.settings.gridHeight = aiResult.gridBoundingBox.height;
+
+            // RE-SCAN locally because the grid changed!
+            detectedAnswers = scanBubblesLocally(
+               processed.canvas,
+               template.totalQuestions,
+               template.optionsPerQuestion,
+               item.settings
+            );
+          }
+
           serverAnomalies = [
-            `Nombre eó escaneado con IA: ${aiResult.modelUsed || 'Desconocido'}`,
+            `Nombre escaneado con IA: ${aiResult.modelUsed || 'Desconocido'}`,
             `Confianza IA: ${Math.round((aiResult.confidence || 0.9) * 100)}%`,
-            'Burbujas: Escáner Matemático Local (100% preciso)',
+            autoAligned ? 'Auto-Alineado con OpenCV (Capa 1/2)' : (aiResult.gridBoundingBox ? 'Grilla ajustada por IA (Capa 3)' : 'Burbujas: Escáner Matemático Local'),
             ...(aiResult.anomalies || []),
           ];
         }
@@ -340,6 +366,8 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
       gridWidth: item.settings.gridWidth,
       gridHeight: item.settings.gridHeight,
       analyzedWithAI,
+      autoAligned,
+      aiGridBoundingBox,
       timestamp: new Date().toISOString(),
     };
 
