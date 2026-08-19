@@ -152,11 +152,25 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
 
   const handleSettingChange = (field: keyof PreprocessSettings, value: any) => {
     if (!selectedItem) return;
-    const updatedSettings = { ...selectedItem.settings, [field]: value };
-    const updated = { ...selectedItem, settings: updatedSettings };
-    setQueue((prev) => prev.map((q) => (q.id === selectedItem.id ? updated : q)));
-    setGlobalSettings((prev) => ({ ...prev, [field]: value }));
-    updateItemPreview(updated);
+
+    if (applyToAll) {
+      setQueue((prev) => {
+        const updatedQueue = prev.map((q) => {
+          const updatedSettings = { ...q.settings, [field]: value };
+          const updated = { ...q, settings: updatedSettings };
+          if (q.id === selectedItem.id) updateItemPreview(updated);
+          return updated;
+        });
+        return updatedQueue;
+      });
+      setGlobalSettings((prev) => ({ ...prev, [field]: value }));
+    } else {
+      const updatedSettings = { ...selectedItem.settings, [field]: value };
+      const updated = { ...selectedItem, settings: updatedSettings };
+      setQueue((prev) => prev.map((q) => (q.id === selectedItem.id ? updated : q)));
+      setGlobalSettings((prev) => ({ ...prev, [field]: value }));
+      updateItemPreview(updated);
+    }
   };
 
   // Camera capture handlers
@@ -639,16 +653,27 @@ export const BatchUploader: React.FC<BatchUploaderProps> = ({
 
             {/* Rotation Buttons */}
             {selectedItem && (
-              <div className="flex items-center space-x-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleRotate(90)}
-                  className="flex items-center space-x-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200 transition"
-                  title="Girar imagen 90 grados a la derecha"
-                >
-                  <RotateCw className="w-3.5 h-3.5 text-slate-500" />
-                  <span>Rotar 90°</span>
-                </button>
+              <div className="flex items-center space-x-4">
+                <label className="flex items-center space-x-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={applyToAll}
+                    onChange={(e) => setApplyToAll(e.target.checked)}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                  />
+                  <span>Aplicar a todas las fotos</span>
+                </label>
+                <div className="flex items-center space-x-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleRotate(90)}
+                    className="flex items-center space-x-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200 transition"
+                    title="Girar imagen 90 grados a la derecha"
+                  >
+                    <RotateCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Rotar 90°</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
